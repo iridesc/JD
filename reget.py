@@ -31,10 +31,11 @@ def getActivityIdList(pageamount):
 
     print('获取试用列表')
     n = 1
+    activity_id_list = []
     while n < pageamount:
         n=bar(n,pageamount)
         # 获取 activity_id
-        activity_id_list = []
+       
         try:
             text=getListPageText(n)
         except Exception as e:
@@ -197,6 +198,8 @@ def Main():
         pageamount=getpageamount()
     except Exception as e:
             print(' in {} .\n{}'.format('getpageamount',str(e)))
+    
+    print(pageamount)
 
     # 获取 activity_id_list
     activity_id_list = getActivityIdList(pageamount)
