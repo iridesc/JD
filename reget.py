@@ -59,8 +59,11 @@ def getattrs(activity_id_list):
       
     @retry(tries=3, delay=1, backoff=2)
     def get_price(iteminfo):
-        return requests.get(
-                'https://p.3.cn/prices/mgets?skuIds=J_{}'.format(iteminfo['trialSkuId'])).json()[0]['p']
+        r=requests.get(
+                'https://p.3.cn/prices/mgets?skuIds=J_{}'.format(iteminfo['trialSkuId']))
+        # print(r.status_code)
+        j=r.json()
+        return j[0]['p']
 
     print('获取试用详情')
     trydata=[]

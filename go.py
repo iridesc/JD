@@ -12,9 +12,10 @@ from retry import retry
 import random
 import json
 from reget import bar
+
 datadir='./data/'
 
-
+TEST=False
 
 def login():
     def get_driver(headless=False,nopic=False):
@@ -51,8 +52,10 @@ def login():
 
     cookies=driver.get_cookies()
     driver.quit()
-     
-    driver=get_driver(nopic=True,headless=True)
+    if not TEST:
+        driver=get_driver(nopic=True,headless=True)
+    else:
+        driver=get_driver()
     driver.get('https://www.jd.com/')
     for cookie in cookies:
         driver.add_cookie(cookie)
