@@ -5,13 +5,13 @@ import json
 from math import exp,pi
 from retry import retry
 
-pubdir='./Pub'
+datadir='./data/'
 
 def bar(n,l,long=50,done='=',head='>',blank='.'):
     print('[{}]{}%'.format((int(n/l*long)*done+head+blank*long)[0:long],round(n/l*100,2),))
     return n+1
 
-
+@retry(tries=3, delay=1, backoff=2)
 def getpageamount():
     r = requests.get('https://try.jd.com/activity/getActivityList')
     r.raise_for_status
@@ -22,15 +22,25 @@ def getpageamount():
     return pageamount
 
 def getActivityIdList(pageamount):
+
+    @retry(tries=3, delay=1, backoff=2)
+    def getListPageText(n):
+        r = requests.get(
+            'https://try.jd.com/activity/getActivityList?page={}&activityState=0'.format(n))
+        return r.text
+
     print('获取试用列表')
     n = 1
     while n < pageamount:
         n=bar(n,pageamount)
         # 获取 activity_id
         activity_id_list = []
-        r = requests.get(
-            'https://try.jd.com/activity/getActivityList?page={}&activityState=0'.format(n))
-        listsoup = BeautifulSoup(r.text, 'html.parser')
+        try:
+            text=getListPageText(n)
+        except Exception as e:
+            print(' in {} .\n{}'.format('getListPageText',str(e)))
+            continue
+        listsoup = BeautifulSoup(text, 'html.parser')
         for li in listsoup.find('div', {'class': 'con'}).find_all('li'):
             # 只获取24h内可以结束的
             if (int(li.attrs['end_time'])/1000-time.time())/(60*60) < 24:
@@ -38,42 +48,47 @@ def getActivityIdList(pageamount):
     return activity_id_list
 
 def getattrs(activity_id_list):
+
+    @retry(tries=3, delay=1, backoff=2)
+    def get_activity_data(activity_id):
+        url='https://try.jd.com/migrate/getActivityById?id={}'.format(activity_id)
+        r = requests.get(url).json()
+        data = r['data']
+        return data
+      
+    @retry(tries=3, delay=1, backoff=2)
+    def get_price(iteminfo):
+        return requests.get(
+                'https://p.3.cn/prices/mgets?skuIds=J_{}'.format(iteminfo['trialSkuId'])).json()[0]['p']
+
     print('获取试用详情')
     trydata=[]
     # 载入Beandata
     try:
-        beandata = json.load(open(pubdir+'Beandata.json', 'r'))
+        beandata = json.load(open(datadir+'Beandata.json', 'r'))
     except FileNotFoundError:
         print('Beandata not find, using a default list as [] .')
         beandata = []
     except:
-        print('unknow erro in load Beandata! ')
+        print('unknow  in load Beandata! ')
         beandata = []
+    
     n=0
     l=len(activity_id_list)
     for activity_id in activity_id_list:
-        
         n=bar(n,l)
-       
         iteminfo = {}
         shopinfo = {}
-        
+    
         # 获取各种属性
         try:
-            url='https://try.jd.com/migrate/getActivityById?id={}'.format(activity_id)
-            r = requests.get(url).json()
-            data = r['data']
-        except KeyError:
-            print('keyerror in get attrs!')
-            print(url)
+            data=get_activity_data(activity_id)
+        except Exception as e:
+            print(' in {} .\n{}'.format('get_activity_data',str(e)))
+            continue
     
-        except ConnectionError:
-            print('connectiongerror in get attrs!')
-            print(url)
-
         # 检查 店铺id 是不是已存在 不存在则加入
         try:
-            
             idinlist = False
             for shop in beandata:
                 if shop['shopId'] == data['shopInfo']['shopId']:
@@ -87,7 +102,6 @@ def getattrs(activity_id_list):
                 beandata.append(shopinfo)
         except TypeError:
             print('TypeError when get shop info ')
-
 
         # 活动属性提取
         iteminfo['activityid'] = activity_id
@@ -107,11 +121,11 @@ def getattrs(activity_id_list):
 
         # 获取价格
         try:
-            price = requests.get(
-                'https://p.3.cn/prices/mgets?skuIds=J_{}'.format(iteminfo['trialSkuId'])).json()[0]['p']
-        except:
-            print('error in get price!')
+            price = get_price(iteminfo)
+        except Exception as e:
+            print(' in {} .\n{}'.format('get_price',str(e)))
             price = 25
+    
         iteminfo['price'] = float(price)
 
         trydata.append(iteminfo)
@@ -119,7 +133,7 @@ def getattrs(activity_id_list):
 
 def loadrule():
     try:
-            rule = json.load(open(pubdir+'rule.txt'))
+            rule = json.load(open(datadir+'rule.txt'))
     except:
         rule = {
             '自营': 30,
@@ -130,7 +144,7 @@ def loadrule():
             '优先关键字': ['鼠标', '键盘', '硬盘', '内存', '显卡', '笔记本', '中性笔', '路由器', '智能', 'u盘', '耳机', '音箱', '储存卡'],
             '排除关键字': ['丝袜', '文胸', '课程', '流量卡', '婴儿', '手机壳', '润滑油', '纸尿裤', '药', '保健品'],
         }
-        json.dump(rule, open(pubdir+'rule.txt', 'w'),ensure_ascii=False,indent=4)
+        json.dump(rule, open(datadir+'rule.txt', 'w'),ensure_ascii=False,indent=4)
 
         print('can\'t find rule.txt, useing default rule !')
     return rule
@@ -181,15 +195,12 @@ def Main():
     # 获取页数
     try:
         pageamount=getpageamount()
-    except:
-        print('error in get page number')
+    except Exception as e:
+            print(' in {} .\n{}'.format('getpageamount',str(e)))
 
     # 获取 activity_id_list
-    try:
-        activity_id_list = getActivityIdList(pageamount)
-    except:
-        print('erro in get activity_id_list')
-        pass
+    activity_id_list = getActivityIdList(pageamount)
+ 
 
     # 获取信息
     trydata,beandata = getattrs(activity_id_list)
@@ -197,7 +208,7 @@ def Main():
     # 载入规则
     rule=loadrule()
 
-     # 评估
+    # 评估
     trydata=estimate(rule,trydata)
 
 
@@ -213,8 +224,8 @@ def Main():
         'trydata':trydata,
     }
 
-    json.dump(Trydata, open(pubdir+'Trydata.json', 'w'),ensure_ascii=False)
-    json.dump(beandata,open(pubdir+'Beandata.json', 'w'),ensure_ascii=False)
+    json.dump(Trydata, open(datadir+'Trydata.json', 'w'),ensure_ascii=False)
+    json.dump(beandata,open(datadir+'Beandata.json', 'w'),ensure_ascii=False)
 
     return trydata,beandata
 

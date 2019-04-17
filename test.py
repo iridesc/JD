@@ -8,7 +8,6 @@ import os
 
 os.getcwd
 
-open('../pub/rule.txt')
 
 
 

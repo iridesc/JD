@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException,NoSuchElementException
 import reget
 from math import exp, pi
 import time
@@ -12,7 +12,7 @@ from retry import retry
 import random
 import json
 from reget import bar
-pubdir='./Pub/'
+datadir='./data/'
 
 
 
@@ -25,10 +25,13 @@ def login():
             prefs = {"profile.managed_default_content_settings.images":2}
             chrome_options.add_experimental_option("prefs",prefs)
         try:
-            driver = webdriver.Chrome(pubdir+'chromedriver',chrome_options=chrome_options)
+            driver = webdriver.Chrome(datadir+'chromedriver',options=chrome_options)
         except OSError:
-            driver = webdriver.Chrome(pubdir+'chromedriver.exe',chrome_options=chrome_options)
-        
+            driver = webdriver.Chrome(datadir+'chromedriver.exe',options=chrome_options)
+        except Exception as e:
+            print(' error in {}  \n{}'.format('get_driver',str(e)))
+            raise
+    
         return driver
     
     driver=get_driver()
@@ -52,7 +55,6 @@ def login():
     driver=get_driver(nopic=True,headless=True)
     driver.get('https://www.jd.com/')
     for cookie in cookies:
-        print(cookie)
         driver.add_cookie(cookie)
     driver.refresh()
 
@@ -69,20 +71,23 @@ def delfollows(driver):
             time.sleep(1)
             driver.find_element_by_class_name('ui-dialog-btn-submit').click()
             time.sleep(1)
-    except:
+    except NoSuchElementException:
         pass
+    except Exception as e:
+            print(' error in {}  \n{}'.format('',str(e)))
+
 
 
 def jdtry(driver, itemlist):
 
     @retry(tries=3, delay=2, backoff=2)
-    def get_itempage_find_appbtn(driver):
+    def get_itempage_find_appbtn(driver,item):
         url = 'https://try.jd.com/{}.html'.format(item['activityid'])
         driver.get(url)
         return driver.find_element_by_class_name('app-btn')
     
     @retry(tries=3, delay=2, backoff=2)
-    def get_dialogtext(app_btn):
+    def get_dialogtext(app_btn,driver):
         app_btn.click()
         time.sleep(random.random()+1)
         dialog = driver.find_element_by_class_name(
@@ -94,25 +99,30 @@ def jdtry(driver, itemlist):
         dialog.find_element_by_class_name('y').click()
         time.sleep(random.random()*2+4)
 
+    print('开始申请京东试用...')
     l=len(itemlist)
     n=0
     for item in itemlist:
         n=bar(n,l)
         # get itempage & find app-btn
         try:
-           app_btn =get_itempage_find_appbtn(driver)
-        except:
-            print('erro in get itempage & find app-btn')
+           app_btn =get_itempage_find_appbtn(driver,item)
+        except Exception as e:
+            print(' error in {}  \n{}'.format('get itempage & find app-btn',str(e)))
             continue
+    
 
         # check if have got
         if '查看更多' not in app_btn.text:
             # get dialogtext
             try:
-                dialogtext,dialog = get_dialogtext(app_btn)
-            except:
-                print('erro in get dialogtext')
+                dialogtext,dialog = get_dialogtext(app_btn,driver)
+            except Exception as e:
+                print(' error in {}  \n{}'.format('get dialogtext',str(e)))
                 continue
+    
+    
+    
 
             # fenxi dialogtext
             if '超过上限' in dialogtext:
@@ -120,16 +130,17 @@ def jdtry(driver, itemlist):
                 break
             
             elif '申请成功' in dialogtext:
-                print('Success !')
+                print('Success ! {}'.format(item['trialName']))
                 time.sleep(random.random()*2+4)
             
 
             elif '需关注店铺' in dialogtext:
                 try:
                     click_fellow(dialog)
-                    print('Success !')
-                except:
-                    print('erro in clickYES')
+                    print('Success ! {}'.format(item['trialName']))
+                except Exception as e:
+                    print(' error in {}  \n{}'.format('clickYES',str(e)))
+
             
             else:
                 print(dialogtext)
@@ -138,12 +149,12 @@ def jdtry(driver, itemlist):
             print('Have got befor!')
         
 def jdbean(driver,beandata):
+    print('开始获取京豆...')
     n = 0
     l = len(beandata)
     newbeandata = []
     for shop in beandata:
         n=bar(n,l)
-        print(shop['shopname'],end='')
         shopid = shop['shopId']
         shopurl = 'https://mall.jd.com/index-{}.html'.format(shopid)
         driver.get(shopurl)
@@ -152,38 +163,44 @@ def jdbean(driver,beandata):
                 lambda d: d.find_element_by_css_selector("[class='J_drawGift d-btn']"))
             btn.click()
             shop['times'] += 1
-            print('Got it !')
+            print('Got it ! {}'.format(shop['shopname']))
         except TimeoutException:
-            print('Bad luck')
+            print('Bad luck {}'.format(shop['shopname']))
+        except Exception as e:
+            print(' error in {}  \n{}'.format('jdbean',str(e)))
+            continue
+
         newbeandata.append(shop)
-    json.dump(newbeandata,open(pubdir+'Beandata.json', 'w'),ensure_ascii=False)
+    json.dump(newbeandata,open(datadir+'Beandata.json', 'w'),ensure_ascii=False)
 
 def loaddata():
 
     # 载入Beandata
     try:
-        beandata = json.load(open(pubdir+'Beandata.json', 'r'))
+        beandata = json.load(open(datadir+'Beandata.json', 'r'))
     except FileNotFoundError:
         print('Beandata not find, using a default list as [] .')
         beandata = []
-    except:
-        print('unknow erro in load Beandata! ')
-        beandata = []
+    except Exception as e:
+            print(' error in {}  \n{}'.format('load Beandata',str(e)))
+            raise
 
     # 载入Trydata
     try:
-        trydata = json.load(open(pubdir+'Trydata.json'))
-        
-        if time.time()-trydata['updatetime'] > 12*60*60:
+        Trydata = json.load(open(datadir+'Trydata.json'))
+        trydata=Trydata['trydata']
+        if time.time()-Trydata['updatetime'] > 12*60*60:
             raise TimeoutError
 
     except (FileNotFoundError,TimeoutError):
         print('Not find data file or file timeout,Regeting...')
         trydata,beandata = reget.Main()
+    except Exception as e:
+            print(' error in {}  \n{}'.format('loaddata',str(e)))
+            raise
     
-    # except:
-    #     print('unknow erro in Trydata! ')
-    print('trydata: {}\nbeandata: {}'.format(len(trydata),len(beandata)))
+  
+    print('\ntrydata: {}\nbeandata: {}\n'.format(len(trydata),len(beandata)))
     return trydata,beandata
 
 
