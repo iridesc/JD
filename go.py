@@ -152,6 +152,12 @@ def jdtry(driver, itemlist):
             print('Have got befor!')
         
 def jdbean(driver,beandata):
+    @retry(tries=3, delay=1, backoff=2)
+    def get_shop_page(shuopurl):
+        driver.get(shopurl)
+        return driver
+
+
     print('开始获取京豆...')
     n = 0
     l = len(beandata)
@@ -160,7 +166,12 @@ def jdbean(driver,beandata):
         n=bar(n,l)
         shopid = shop['shopId']
         shopurl = 'https://mall.jd.com/index-{}.html'.format(shopid)
-        driver.get(shopurl)
+        try:
+            drive=get_shop_page(shopurl)
+        except Exception as e:
+            print('error in {} .\n{}'.format('get_shop_page',str(e)))
+            continue
+        
         try:
             btn = WebDriverWait(driver, 2.5).until(
                 lambda d: d.find_element_by_css_selector("[class='J_drawGift d-btn']"))
@@ -200,9 +211,8 @@ def loaddata():
         trydata,beandata = reget.Main()
     except Exception as e:
             print(' error in {}  \n{}'.format('loaddata',str(e)))
-            raise
+            continue
     
-  
     print('\ntrydata: {}\nbeandata: {}\n'.format(len(trydata),len(beandata)))
     return trydata,beandata
 
