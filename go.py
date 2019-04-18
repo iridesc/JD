@@ -211,7 +211,7 @@ def loaddata():
         trydata,beandata = reget.Main()
     except Exception as e:
             print(' error in {}  \n{}'.format('loaddata',str(e)))
-            continue
+        
     
     print('\ntrydata: {}\nbeandata: {}\n'.format(len(trydata),len(beandata)))
     return trydata,beandata
