@@ -33,7 +33,7 @@ def login():
             print(' error in {}  \n{}'.format('get_driver',str(e)))
             raise
         # 设置最长加载时间
-        driver.set_page_load_timeout(30)
+        # driver.set_page_load_timeout(30)
         return driver
     
     def get_one_user():
@@ -308,23 +308,27 @@ def loaddata():
 
 
 if __name__ == '__main__':
-
-    # login
-    driver = login()
-  
-    # clean follows
-    if input('是否删除关注的店铺(y/n):') in ['y','']:
-        delfollows(driver)
+    try:
+        # login
+        driver = login()
     
-    # load data
-    trydata,beaandata = loaddata()
-    
-    # try items
-    jdtry(driver,trydata)
+        # clean follows
+        if input('是否删除关注的店铺(y/n):') in ['y','']:
+            delfollows(driver)
+        
+        # load data
+        trydata,beaandata = loaddata()
+        
+        # try items
+        jdtry(driver,trydata)
 
-    # get bean
-    jdbean(driver,beaandata)
+        # get bean
+        jdbean(driver,beaandata)
 
+        # quite
+        driver.quit()
 
-    # quite
-    driver.quit()
+    except:            
+        # quite
+        print('a fatal error！now quit！')
+        driver.quit()
