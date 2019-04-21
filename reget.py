@@ -13,7 +13,7 @@ def bar(n,l,long=50,done='=',head='>',blank='.'):
 
 @retry(tries=3, delay=1, backoff=2)
 def getpageamount():
-    r = requests.get('https://try.jd.com/activity/getActivityList')
+    r = requests.get('https://try.jd.com/activity/getActivityList',timeout=10)
     r.raise_for_status
     listsoup = BeautifulSoup(r.text, 'html.parser')
     pageamount = int(listsoup.find_all(
@@ -25,8 +25,9 @@ def getActivityIdList(pageamount):
 
     @retry(tries=3, delay=1, backoff=2)
     def getListPageText(n):
+        print('>')
         r = requests.get(
-            'https://try.jd.com/activity/getActivityList?page={}&activityState=0'.format(n))
+            'https://try.jd.com/activity/getActivityList?page={}&activityState=0'.format(n),timeout=10)
         return r.text
 
     print('获取试用列表')
@@ -53,29 +54,34 @@ def getattrs(activity_id_list):
     @retry(tries=3, delay=1, backoff=2)
     def get_activity_data(activity_id):
         url='https://try.jd.com/migrate/getActivityById?id={}'.format(activity_id)
-        r = requests.get(url).json()
+        r = requests.get(url,timeout=10).json()
         data = r['data']
         return data
       
     @retry(tries=3, delay=1, backoff=2)
     def get_price(iteminfo):
         r=requests.get(
-                'https://p.3.cn/prices/mgets?skuIds=J_{}'.format(iteminfo['trialSkuId']))
+                'https://p.3.cn/prices/mgets?skuIds=J_{}'.format(iteminfo['trialSkuId']),timeout=10)
         # print(r.status_code)
         j=r.json()
         return j[0]['p']
 
+
+
+
+
     print('获取试用详情')
     trydata=[]
+
     # 载入Beandata
     try:
         beandata = json.load(open(datadir+'Beandata.json', 'r'))
     except FileNotFoundError:
         print('Beandata not find, using a default list as [] .')
-        beandata = []
+        beandata = {}
     except:
         print('unknow  in load Beandata! ')
-        beandata = []
+        beandata = {}
     
     n=0
     l=len(activity_id_list)
@@ -93,17 +99,23 @@ def getattrs(activity_id_list):
     
         # 检查 店铺id 是不是已存在 不存在则加入
         try:
-            idinlist = False
-            for shop in beandata:
-                if shop['shopId'] == data['shopInfo']['shopId']:
-                    idinlist = True
-                    break
-            if not idinlist:
-                shopinfo['shopId'] = data['shopInfo']['shopId']
+            if data['shopInfo']['shopId'] not in beandata:
                 shopinfo['shopname'] = data['shopInfo']['title']
-                shopinfo['times'] = 0
-                # 数据添加
-                beandata.append(shopinfo)
+                shopinfo['score'] = 0
+                shopinfo['shopId']= data['shopInfo']['shopId']
+                beandata[data['shopInfo']['shopId']]=shopinfo
+    
+            # idinlist = False
+            # for shop in beandata:
+            #     if shop['shopId'] == data['shopInfo']['shopId']:
+            #         idinlist = True
+            #         break
+            # if not idinlist:
+            #     shopinfo['shopId'] = data['shopInfo']['shopId']
+            #     shopinfo['shopname'] = data['shopInfo']['title']
+            #     shopinfo['times'] = 0
+            #     # 数据添加
+            #     beandata.append(shopinfo)
         except TypeError:
             print('TypeError when get shop info ')
 
@@ -202,7 +214,6 @@ def Main():
     except Exception as e:
             print(' in {} .\n{}'.format('getpageamount',str(e)))
     
-    print(pageamount)
 
     # 获取 activity_id_list
     activity_id_list = getActivityIdList(pageamount)
@@ -232,7 +243,4 @@ def Main():
 
     json.dump(Trydata, open(datadir+'Trydata.json', 'w'),ensure_ascii=False)
     json.dump(beandata,open(datadir+'Beandata.json', 'w'),ensure_ascii=False)
-
     return trydata,beandata
-
-

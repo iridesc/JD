@@ -6,8 +6,20 @@ import json,requests
 from bs4 import BeautifulSoup
 import os
 
-os.getcwd
+a=[0,1,2,3]
+a.pop(0)
+print(a)
 
+
+
+# da=json.load(open('./data/Beandata.json'))
+# newdata={}
+# for shopId,shop in  da.items() :
+#     shop['shopId']=shopId
+
+#     newdata[shopId]=shop
+
+# json.dump(newdata,open('./data/Beandata.json','w'),ensure_ascii=False)
 
 
 

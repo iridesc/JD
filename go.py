@@ -6,7 +6,6 @@ from selenium.common.exceptions import TimeoutException,NoSuchElementException
 import reget
 from math import exp, pi
 import time
-import requests
 import re
 from retry import retry
 import random
@@ -25,6 +24,7 @@ def login():
         if nopic:
             prefs = {"profile.managed_default_content_settings.images":2}
             chrome_options.add_experimental_option("prefs",prefs)
+        
         try:
             driver = webdriver.Chrome(datadir+'chromedriver',options=chrome_options)
         except OSError:
@@ -32,36 +32,112 @@ def login():
         except Exception as e:
             print(' error in {}  \n{}'.format('get_driver',str(e)))
             raise
-    
+        # 设置最长加载时间
+        driver.set_page_load_timeout(30)
         return driver
     
+    def get_one_user():
+        try:
+            userlist=json.load(open(datadir+'users.json'))
+            user=userlist.pop(0)
+            userlist.append(user)
+            json.dump(userlist,open(datadir+'users.json','w'))
+
+        except (FileNotFoundError,IndexError):
+            json.dump([],open(datadir+'users.json','w'))
+            user=None
+        return user
+
+    def save_one_user(cookies):
+        for cookie in cookies:
+            if cookie['name'] =='unick':
+                    username=cookie['value']
+                    break
+        print('saving user {} ...'.format(username))
+      
+        # 检查文件 如果user存在则删除 
+        users=json.load(open(datadir+'users.json'))
+        newusers=[]
+        for user in users:
+            if username == user['username']:
+                user['cookies']=cookies
+            else:
+                newusers.append(user)
+        # 重新添加
+        newusers.append({
+            'username':username,
+            'cookies':cookies
+        })
+        json.dump(newusers,open(datadir+'users.json','w'))
+        print('Hello {} !'.format(username))
+
+    def test_user(user,driver):
+        print('testing user: {}'.format(user['username']))
+        testurl='https://home.jd.com/'
+        url='https://jd.com/'
+        driver.get(url)
+        for cookie in user['cookies']:
+            driver.add_cookie(cookie)
+        driver.get(testurl)
+        current_url=driver.current_url
+        if 'passport.jd.com' in current_url:
+            logined=False
+        elif 'home.jd.com' in current_url:
+            logined=True
+        else:
+            print(current_url)
+            print('unknow user login status !!!!!')
+        return logined
+
+    def relogin(driver):
+        driver.set_window_size(1000, 600)
+        driver.get('https://passport.jd.com/new/login.aspx')
+        n = 0
+        while not driver.current_url == 'https://www.jd.com/':
+            time.sleep(1)
+            n += 1
+            if n > 179:
+                driver.refresh()
+                print('QR have refreshed !')
+                n = 0
+            if n % 5 == 0:
+                print('Witing for login....{} s '.format(180-n))
+
+        return driver
+    
+   
+    an=input('载入userlist中的user？')
     driver=get_driver()
-    driver.set_window_size(1000, 600)
-    driver.get('https://passport.jd.com/new/login.aspx')
-
-    n = 0
-    while not driver.current_url == 'https://www.jd.com/':
-        time.sleep(1)
-        n += 1
-        if n > 179:
-            driver.refresh()
-            print('QR have refreshed !')
-            n = 0
-        if n % 5 == 0:
-            print('Witing for login....{} s '.format(180-n))
-
-    cookies=driver.get_cookies()
-    driver.quit()
-    if not TEST:
-        driver=get_driver(nopic=True,headless=True)
+    if an=='' or an == 'y':
+        user=get_one_user()
+        if user != None:
+            print('got user: {}'.format(user['username']))
+            logined=test_user(user,driver)
+            if not logined:
+                print('{} not login ! please login !'.format(user['username']))
+                driver = relogin(driver)
+        else:
+            print('not find any user! please login !') 
+            driver = relogin(driver)
     else:
-        driver=get_driver()
-    driver.get('https://www.jd.com/')
-    for cookie in cookies:
-        driver.add_cookie(cookie)
-    driver.refresh()
+        print('new user login ....')
+        driver=relogin(driver)    
+    
+    cookies=driver.get_cookies()
+    save_one_user(cookies)
+    if not TEST:
+        driver.quit()           
+        driver=get_driver(nopic=True,headless=True)
+        driver.get('https://www.jd.com/')
+        for cookie in cookies:
+            driver.add_cookie(cookie)
+        driver.refresh()
+
 
     return driver
+  
+
+   
 
 
 def delfollows(driver):
@@ -83,25 +159,28 @@ def delfollows(driver):
 
 def jdtry(driver, itemlist):
 
-    @retry(tries=3, delay=2, backoff=2)
+    @retry(tries=3, delay=1, backoff=2)
     def get_itempage_find_appbtn(driver,item):
         url = 'https://try.jd.com/{}.html'.format(item['activityid'])
         driver.get(url)
-        return driver.find_element_by_class_name('app-btn')
+        btn=driver.find_element_by_class_name('app-btn')
+        
+        return btn
     
-    @retry(tries=3, delay=2, backoff=2)
+    @retry(tries=3, delay=1, backoff=2)
     def get_dialogtext(app_btn,driver):
         app_btn.click()
         time.sleep(random.random()+1)
         dialog = driver.find_element_by_class_name(
             'ui-dialog-content')
+    
         return dialog.text,dialog
 
-    @retry(tries=3, delay=2, backoff=2)
+    @retry(tries=3, delay=1, backoff=2)
     def click_fellow(dialog):
         dialog.find_element_by_class_name('y').click()
         time.sleep(random.random()*2+4)
-
+    
     print('开始申请京东试用...')
     l=len(itemlist)
     n=0
@@ -109,9 +188,9 @@ def jdtry(driver, itemlist):
         n=bar(n,l)
         # get itempage & find app-btn
         try:
-           app_btn =get_itempage_find_appbtn(driver,item)
+            app_btn =get_itempage_find_appbtn(driver,item)
         except Exception as e:
-            print(' error in {}  \n{}'.format('get itempage & find app-btn',str(e)))
+            print(' error in {}  \n{}'.format('get itempage & find app-btn',str(e)))    
             continue
     
 
@@ -153,7 +232,8 @@ def jdtry(driver, itemlist):
         
 def jdbean(driver,beandata):
     @retry(tries=3, delay=1, backoff=2)
-    def get_shop_page(shuopurl):
+    def get_shop_page(shuoid):
+        shopurl = 'https://mall.jd.com/index-{}.html'.format(shopid)
         driver.get(shopurl)
         return driver
 
@@ -161,13 +241,15 @@ def jdbean(driver,beandata):
     print('开始获取京豆...')
     n = 0
     l = len(beandata)
-    newbeandata = []
+    newbeandata = {}
     for shop in beandata:
-        n=bar(n,l)
         shopid = shop['shopId']
-        shopurl = 'https://mall.jd.com/index-{}.html'.format(shopid)
+        # print('shopId:',shopid)
+
+        n=bar(n,l)
+      
         try:
-            drive=get_shop_page(shopurl)
+            drive=get_shop_page(shopid)
         except Exception as e:
             print('error in {} .\n{}'.format('get_shop_page',str(e)))
             continue
@@ -176,28 +258,23 @@ def jdbean(driver,beandata):
             btn = WebDriverWait(driver, 2.5).until(
                 lambda d: d.find_element_by_css_selector("[class='J_drawGift d-btn']"))
             btn.click()
-            shop['times'] += 1
+            shop['score'] = 0
             print('Got it ! {}'.format(shop['shopname']))
         except TimeoutException:
             print('Bad luck {}'.format(shop['shopname']))
+            shop['score']-=1
+            
         except Exception as e:
             print(' error in {}  \n{}'.format('jdbean',str(e)))
             continue
 
-        newbeandata.append(shop)
+        newbeandata[shop['shopId']]=shop
     json.dump(newbeandata,open(datadir+'Beandata.json', 'w'),ensure_ascii=False)
 
 def loaddata():
-
-    # 载入Beandata
-    try:
-        beandata = json.load(open(datadir+'Beandata.json', 'r'))
-    except FileNotFoundError:
-        print('Beandata not find, using a default list as [] .')
-        beandata = []
-    except Exception as e:
-            print(' error in {}  \n{}'.format('load Beandata',str(e)))
-            raise
+    # 对beandata进行排序的函数
+    def sort_Bean(shop):
+        return shop['score']
 
     # 载入Trydata
     try:
@@ -205,14 +282,27 @@ def loaddata():
         trydata=Trydata['trydata']
         if time.time()-Trydata['updatetime'] > 12*60*60:
             raise TimeoutError
+        else:
+            # Trydata载入成功则载入Beandata
+            try:
+                beandata = json.load(open(datadir+'Beandata.json'))
+                beandata = [shop[1] for shop in beandata.items()]
+                a=beandata.sort(key=sort_Bean,reverse=True)
+            except FileNotFoundError:
+                print('Beandata not find, using a default list as [] .')
+                beandata = []
+            except Exception as e:
+                    print(' error in {}  \n{}'.format('load Beandata',str(e)))
+                    raise
 
     except (FileNotFoundError,TimeoutError):
         print('Not find data file or file timeout,Regeting...')
         trydata,beandata = reget.Main()
+        beandata = [shop[1] for shop in beandata.items()]
+        beandata.sort(key=sort_Bean,reverse=True)
     except Exception as e:
             print(' error in {}  \n{}'.format('loaddata',str(e)))
-        
-    
+
     print('\ntrydata: {}\nbeandata: {}\n'.format(len(trydata),len(beandata)))
     return trydata,beandata
 
