@@ -17,14 +17,14 @@ datadir='./data/'
 TEST=False
 
 def login():
-    def get_driver(headless=False,nopic=False):
+    def get_driver(headless=True,nopic=True):
         chrome_options = Options()
-        if headless:
-            chrome_options.add_argument('--headless')
-        if nopic:
-            prefs = {"profile.managed_default_content_settings.images":2}
-            chrome_options.add_experimental_option("prefs",prefs)
-        
+        if not TEST:
+            if headless:
+                chrome_options.add_argument('--headless')
+            if nopic:
+                prefs = {"profile.managed_default_content_settings.images":2}
+                chrome_options.add_experimental_option("prefs",prefs)
         try:
             driver = webdriver.Chrome(datadir+'chromedriver',options=chrome_options)
         except OSError:
@@ -85,11 +85,14 @@ def login():
         elif 'home.jd.com' in current_url:
             logined=True
         else:
-            print(current_url)
             print('unknow user login status !!!!!')
-        return logined
+            print(current_url)
+            logined=False
+        return logined,driver
 
     def relogin(driver):
+        driver.quit()
+        driver=get_driver(headless=False,nopic=False)
         driver.set_window_size(1000, 600)
         driver.get('https://passport.jd.com/new/login.aspx')
         n = 0
@@ -111,8 +114,7 @@ def login():
     if an=='' or an == 'y':
         user=get_one_user()
         if user != None:
-            print('got user: {}'.format(user['username']))
-            logined=test_user(user,driver)
+            logined,driver=test_user(user,driver)
             if not logined:
                 print('{} not login ! please login !'.format(user['username']))
                 driver = relogin(driver)
@@ -125,14 +127,13 @@ def login():
     
     cookies=driver.get_cookies()
     save_one_user(cookies)
-    if not TEST:
-        driver.quit()           
-        driver=get_driver(nopic=True,headless=True)
-        driver.get('https://www.jd.com/')
-        for cookie in cookies:
-            driver.add_cookie(cookie)
-        driver.refresh()
-
+    
+    driver.quit()           
+    driver=get_driver()
+    driver.get('https://www.jd.com/')
+    for cookie in cookies:
+        driver.add_cookie(cookie)
+    driver.refresh()
 
     return driver
   
@@ -247,7 +248,7 @@ def jdbean(driver,beandata):
         n=bar(n,l)
       
         try:
-            drive=get_shop_page(shopid,driver)
+            driver=get_shop_page(shopid,driver)
         except Exception as e:
             print('error in {} .\n{}'.format('get_shop_page',str(e)))
             continue
@@ -286,7 +287,7 @@ def loaddata():
             try:
                 beandata = json.load(open(datadir+'Beandata.json'))
                 beandata = [shop[1] for shop in beandata.items()]
-                a=beandata.sort(key=sort_Bean,reverse=True)
+                beandata.sort(key=sort_Bean,reverse=True)
             except FileNotFoundError:
                 print('Beandata not find, using a default list as [] .')
                 beandata = []
