@@ -50,8 +50,6 @@ def clean_driver(driver,clear_n):
         clear_n+=1
     return driver,clear_n
 
-
-
 def login():
     def get_one_user():
         try:
