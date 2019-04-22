@@ -12,7 +12,7 @@ from reget import bar
 
 
 TEST=False
-max_clean_n = 20
+max_clean_n = 5
 
 def get_driver(headless=True,nopic=True,nostyle=True):
     systemtype=sys.platform
@@ -27,7 +27,6 @@ def get_driver(headless=True,nopic=True,nostyle=True):
             #不加载图片
             firefox_profile.set_preference("permissions.default.image",2)  
         if nostyle:
-            pass
             #禁用样式表文件
             firefox_profile.set_preference("permissions.default.stylesheet",2)  
     #更新设置
@@ -40,7 +39,7 @@ def get_driver(headless=True,nopic=True,nostyle=True):
     else:
         print('不支持的系统类型！')
         raise OSError
-    driver = webdriver.Firefox(executable_path=executable_path,firefox_profile=firefox_profile,options=fireFoxOptions,log_path='./data/geckodriver.log')
+    driver = webdriver.Firefox(executable_path=executable_path,firefox_profile=firefox_profile,options=fireFoxOptions,service_log_path='./data/geckodriver.log')
 
     # 设置最长加载时间
     # driver.set_page_load_timeout(30)
@@ -48,18 +47,24 @@ def get_driver(headless=True,nopic=True,nostyle=True):
 
 
 def clean_driver(driver,clear_n):
-    if clear_n % max_clean_n == 0:
-        print('cleaning driver...')
-        cookies=driver.get_cookies()
-        driver.quit()
-        driver=get_driver()
-        driver.get('https://www.jd.com/')
-        for cookie in cookies:
-            driver.add_cookie(cookie)
-        clear_n=1
-        print('Done .')
-    else:
-        clear_n+=1
+    # if clear_n % max_clean_n == 0:
+    #     print('cleaning driver...')
+    #     cookies=driver.get_cookies()
+    #     driver.quit()
+    #     driver=get_driver()
+    #     driver.get('https://www.jd.com/')
+    #     for cookie in cookies:
+    #         try:
+    #             driver.add_cookie(cookie)
+    #         except Exception as e:
+    #             if TEST:
+    #                 print(e)
+    #                 print(cookie)
+
+    #     clear_n=1
+    #     print('Done .')
+    # else:
+    #     clear_n+=1
     return driver,clear_n
 
 def login():
