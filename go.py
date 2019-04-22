@@ -16,26 +16,38 @@ datadir='./data/'
 
 TEST=False
 
+def get_driver(headless=True,nopic=True):
+    chrome_options = Options()
+    if not TEST:
+        if headless:
+            chrome_options.add_argument('--headless')
+        if nopic:
+            prefs = {"profile.managed_default_content_settings.images":2}
+            chrome_options.add_experimental_option("prefs",prefs)
+    try:
+        driver = webdriver.Chrome(datadir+'chromedriver',options=chrome_options)
+    except OSError:
+        driver = webdriver.Chrome(datadir+'chromedriver.exe',options=chrome_options)
+    except Exception as e:
+        print(' error in {}  \n{}'.format('get_driver',str(e)))
+        raise
+    # 设置最长加载时间
+    # driver.set_page_load_timeout(30)
+    return driver
+
+
+def clean_driver(driver):
+    cookies=driver.get_cookies()
+    driver.quit()
+    driver=get_driver()
+    driver.get('https://www.jd.com/')
+    for cookie in cookies:
+        driver.add_cookie(cookie)
+    return driver
+
+
+
 def login():
-    def get_driver(headless=True,nopic=True):
-        chrome_options = Options()
-        if not TEST:
-            if headless:
-                chrome_options.add_argument('--headless')
-            if nopic:
-                prefs = {"profile.managed_default_content_settings.images":2}
-                chrome_options.add_experimental_option("prefs",prefs)
-        try:
-            driver = webdriver.Chrome(datadir+'chromedriver',options=chrome_options)
-        except OSError:
-            driver = webdriver.Chrome(datadir+'chromedriver.exe',options=chrome_options)
-        except Exception as e:
-            print(' error in {}  \n{}'.format('get_driver',str(e)))
-            raise
-        # 设置最长加载时间
-        # driver.set_page_load_timeout(30)
-        return driver
-    
     def get_one_user():
         try:
             userlist=json.load(open(datadir+'users.json'))
@@ -127,7 +139,7 @@ def login():
     
     cookies=driver.get_cookies()
     save_one_user(cookies)
-    
+
     driver.quit()           
     driver=get_driver()
     driver.get('https://www.jd.com/')
@@ -136,10 +148,6 @@ def login():
     driver.refresh()
 
     return driver
-  
-
-   
-
 
 def delfollows(driver):
     try:
@@ -155,8 +163,6 @@ def delfollows(driver):
             return driver
     except Exception as e:
             print(' error in {}  \n{}'.format('',str(e)))
-
-
 
 def jdtry(driver, itemlist):
 
@@ -183,6 +189,8 @@ def jdtry(driver, itemlist):
     
     print('开始申请京东试用...')
     l=len(itemlist)
+    
+    clear_n=1
     n=0
     for item in itemlist:
         n=bar(n,l)
@@ -224,9 +232,14 @@ def jdtry(driver, itemlist):
                     print(' error in {}  \n{}'.format('clickYES',str(e)))
             else:
                 print('infomation:',dialogtext)
-        
         else:
             print('Have got befor!')
+        
+        clear_n += 1
+        if clear_n % 10 == 0 :
+            clear_n=1
+            driver = clean_driver(driver)
+
     return driver
         
 def jdbean(driver,beandata):
@@ -238,6 +251,8 @@ def jdbean(driver,beandata):
 
 
     print('开始获取京豆...')
+
+    clear_n = 1
     n = 0
     l = len(beandata)
     newbeandata = {}
@@ -266,8 +281,14 @@ def jdbean(driver,beandata):
         except Exception as e:
             print(' error in {}  \n{}'.format('jdbean',str(e)))
             continue
-
+        
         newbeandata[shop['shopId']]=shop
+
+        clear_n += 1
+        if clear_n % 10 == 0 :
+            clear_n=1
+            driver = clean_driver(driver)
+
     json.dump(newbeandata,open(datadir+'Beandata.json', 'w'),ensure_ascii=False)
     return driver
 
