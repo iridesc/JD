@@ -13,7 +13,7 @@ import json
 from reget import bar
 
 TEST=False
-clean_driver_after_n_page = 50
+max_clean_n = 25
 
 def get_driver(headless=True,nopic=True):
     chrome_options = Options()
@@ -36,7 +36,8 @@ def get_driver(headless=True,nopic=True):
 
 
 def clean_driver(driver,clear_n):
-    if clear_n % clean_driver_after_n_page == 0:
+    print(clear_n)
+    if clear_n % max_clean_n == 0:
         print('cleaning driver...')
         cookies=driver.get_cookies()
         driver.quit()
@@ -191,10 +192,12 @@ def jdtry(driver, itemlist):
         time.sleep(random.random()*2+4)
     
     print('开始申请京东试用...')
-    l=len(itemlist)
+ 
     
-    clear_n=1
+    
     n=0
+    clear_n=1
+    l=len(itemlist)
     for item in itemlist:
         n=bar(n,l)
         # get itempage & find app-btn
@@ -252,8 +255,8 @@ def jdbean(driver,beandata):
 
     print('开始获取京豆...')
 
-    clear_n = 1
     n = 0
+    clear_n=1
     l = len(beandata)
     newbeandata = {}
     for shop in beandata:
@@ -346,7 +349,9 @@ if __name__ == '__main__':
         # quite
         driver.quit()
 
-    except:            
+    except Exception as e:            
         # quite
         print('a fatal error！now quit！')
+        print(e)
         driver.quit()
+        raise
