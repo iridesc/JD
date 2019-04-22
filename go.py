@@ -151,7 +151,7 @@ def delfollows(driver):
             driver.find_element_by_class_name('ui-dialog-btn-submit').click()
             time.sleep(1)
     except NoSuchElementException:
-        pass
+            return driver
     except Exception as e:
             print(' error in {}  \n{}'.format('',str(e)))
 
@@ -229,10 +229,11 @@ def jdtry(driver, itemlist):
         
         else:
             print('Have got befor!')
+    return driver
         
 def jdbean(driver,beandata):
     @retry(tries=3, delay=1, backoff=2)
-    def get_shop_page(shuoid):
+    def get_shop_page(shuoid,driver):
         shopurl = 'https://mall.jd.com/index-{}.html'.format(shopid)
         driver.get(shopurl)
         return driver
@@ -249,7 +250,7 @@ def jdbean(driver,beandata):
         n=bar(n,l)
       
         try:
-            drive=get_shop_page(shopid)
+            drive=get_shop_page(shopid,driver)
         except Exception as e:
             print('error in {} .\n{}'.format('get_shop_page',str(e)))
             continue
@@ -270,6 +271,7 @@ def jdbean(driver,beandata):
 
         newbeandata[shop['shopId']]=shop
     json.dump(newbeandata,open(datadir+'Beandata.json', 'w'),ensure_ascii=False)
+    return driver
 
 def loaddata():
     # 对beandata进行排序的函数
@@ -314,16 +316,16 @@ if __name__ == '__main__':
     
         # clean follows
         if input('是否删除关注的店铺(y/n):') in ['y','']:
-            delfollows(driver)
+            driver=delfollows(driver)
         
         # load data
         trydata,beaandata = loaddata()
         
         # try items
-        jdtry(driver,trydata)
+        driver=jdtry(driver,trydata)
 
         # get bean
-        jdbean(driver,beaandata)
+        driver=jdbean(driver,beaandata)
 
         # quite
         driver.quit()
