@@ -27,6 +27,7 @@ def get_driver(headless=True,nopic=True,nostyle=True):
             #不加载图片
             firefox_profile.set_preference("permissions.default.image",2)  
         if nostyle:
+            pass
             #禁用样式表文件
             firefox_profile.set_preference("permissions.default.stylesheet",2)  
     #更新设置
@@ -119,7 +120,7 @@ def login():
     def relogin(driver):
         driver.quit()
         driver=get_driver(headless=False,nopic=False)
-        driver.set_window_size(1000, 600)
+        driver.set_window_size(550, 550)
         driver.get('https://passport.jd.com/new/login.aspx')
         n = 0
         while not driver.current_url == 'https://www.jd.com/':
