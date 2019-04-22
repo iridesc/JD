@@ -1,19 +1,16 @@
-from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import TimeoutException,NoSuchElementException
 import reget
-from math import exp, pi
 import time
-import re
 from retry import retry
 import random
 import json
 from reget import bar
 
 TEST=False
-max_clean_n = 25
+max_clean_n = 20
 
 def get_driver(headless=True,nopic=True):
     chrome_options = Options()
@@ -36,7 +33,6 @@ def get_driver(headless=True,nopic=True):
 
 
 def clean_driver(driver,clear_n):
-    print(clear_n)
     if clear_n % max_clean_n == 0:
         print('cleaning driver...')
         cookies=driver.get_cookies()
@@ -193,7 +189,6 @@ def jdtry(driver, itemlist):
     
     print('开始申请京东试用...')
  
-    
     
     n=0
     clear_n=1
@@ -354,4 +349,3 @@ if __name__ == '__main__':
         print('a fatal error！now quit！')
         print(e)
         driver.quit()
-        raise
