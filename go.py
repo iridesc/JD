@@ -164,7 +164,6 @@ def jdtry(driver, itemlist):
         url = 'https://try.jd.com/{}.html'.format(item['activityid'])
         driver.get(url)
         btn=driver.find_element_by_class_name('app-btn')
-        
         return btn
     
     @retry(tries=3, delay=1, backoff=2)
@@ -222,10 +221,8 @@ def jdtry(driver, itemlist):
                     print('Success ! {}'.format(item['trialName']))
                 except Exception as e:
                     print(' error in {}  \n{}'.format('clickYES',str(e)))
-
-            
             else:
-                print(dialogtext)
+                print('infomation:',dialogtext)
         
         else:
             print('Have got befor!')

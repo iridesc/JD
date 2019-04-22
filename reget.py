@@ -70,8 +70,7 @@ def getattrs(activity_id_list):
 
 
 
-    print('获取试用详情')
-    trydata=[]
+    
 
     # 载入Beandata
     try:
@@ -83,6 +82,8 @@ def getattrs(activity_id_list):
         print('unknow  in load Beandata! ')
         beandata = {}
     
+    print('获取试用详情')
+    trydata=[]
     n=0
     l=len(activity_id_list)
     for activity_id in activity_id_list:
@@ -94,10 +95,10 @@ def getattrs(activity_id_list):
         try:
             data=get_activity_data(activity_id)
         except Exception as e:
-            print(' in {} .\n{}'.format('get_activity_data',str(e)))
+            print('error in {} .\n{}'.format('get_activity_data',str(e)))
             continue
     
-        # 检查 店铺id 是不是已存在 不存在则加入
+        # 检查 店铺id 是不是已存在Beandata 不存在则加入
         try:
             if data['shopInfo']['shopId'] not in beandata:
                 shopinfo['shopname'] = data['shopInfo']['title']
@@ -105,17 +106,6 @@ def getattrs(activity_id_list):
                 shopinfo['shopId']= data['shopInfo']['shopId']
                 beandata[data['shopInfo']['shopId']]=shopinfo
     
-            # idinlist = False
-            # for shop in beandata:
-            #     if shop['shopId'] == data['shopInfo']['shopId']:
-            #         idinlist = True
-            #         break
-            # if not idinlist:
-            #     shopinfo['shopId'] = data['shopInfo']['shopId']
-            #     shopinfo['shopname'] = data['shopInfo']['title']
-            #     shopinfo['times'] = 0
-            #     # 数据添加
-            #     beandata.append(shopinfo)
         except TypeError:
             print('TypeError when get shop info ')
 
@@ -141,10 +131,10 @@ def getattrs(activity_id_list):
         except Exception as e:
             print(' in {} .\n{}'.format('get_price',str(e)))
             price = 25
-    
         iteminfo['price'] = float(price)
 
         trydata.append(iteminfo)
+        
     return trydata,beandata
 
 def loadrule():
