@@ -1,5 +1,4 @@
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import TimeoutException,NoSuchElementException
 import reget
@@ -7,28 +6,41 @@ import time
 from retry import retry
 import random
 import json
+import sys
 from reget import bar
 
 
 
 TEST=False
-max_clean_n = 10
+max_clean_n = 20
 
-def get_driver(headless=True,nopic=True):
-    chrome_options = Options()
-    if not TEST:
+def get_driver(headless=True,nopic=True,nostyle=True):
+    systemtype=sys.platform
+    fireFoxOptions = webdriver.FirefoxOptions()
+    firefox_profile = webdriver.FirefoxProfile()
+
+    if not TEST:   
         if headless:
-            chrome_options.add_argument('--headless')
+            # 无头模式
+            fireFoxOptions .add_argument("--headless")
         if nopic:
-            prefs = {"profile.managed_default_content_settings.images":2}
-            chrome_options.add_experimental_option("prefs",prefs)
-    try:
-        driver = webdriver.Chrome('./data/chromedriver',options=chrome_options)
-    except OSError:
-        driver = webdriver.Chrome('./data/chromedriver.exe',options=chrome_options)
-    except Exception as e:
-        print(' error in {}  \n{}'.format('get_driver',str(e)))
-        raise
+            #不加载图片
+            firefox_profile.set_preference("permissions.default.image",2)  
+        if nostyle:
+            #禁用样式表文件
+            firefox_profile.set_preference("permissions.default.stylesheet",2)  
+    #更新设置
+    firefox_profile.update_preferences()  
+    # 系统判断
+    if systemtype=='linux':
+        executable_path='./data/geckodriver'
+    elif systemtype=='win32':
+        executable_path='./data/geckodriver.exe'
+    else:
+        print('不支持的系统类型！')
+        raise OSError
+    driver = webdriver.Firefox(executable_path=executable_path,firefox_profile=firefox_profile,options=fireFoxOptions,log_path='./data/geckodriver.log')
+
     # 设置最长加载时间
     # driver.set_page_load_timeout(30)
     return driver
