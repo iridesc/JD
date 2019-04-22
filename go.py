@@ -12,9 +12,8 @@ import random
 import json
 from reget import bar
 
-datadir='./data/'
-
 TEST=False
+clean_driver_after_n_page = 50
 
 def get_driver(headless=True,nopic=True):
     chrome_options = Options()
@@ -25,9 +24,9 @@ def get_driver(headless=True,nopic=True):
             prefs = {"profile.managed_default_content_settings.images":2}
             chrome_options.add_experimental_option("prefs",prefs)
     try:
-        driver = webdriver.Chrome(datadir+'chromedriver',options=chrome_options)
+        driver = webdriver.Chrome('./data/chromedriver',options=chrome_options)
     except OSError:
-        driver = webdriver.Chrome(datadir+'chromedriver.exe',options=chrome_options)
+        driver = webdriver.Chrome('./data/chromedriver.exe',options=chrome_options)
     except Exception as e:
         print(' error in {}  \n{}'.format('get_driver',str(e)))
         raise
@@ -36,27 +35,33 @@ def get_driver(headless=True,nopic=True):
     return driver
 
 
-def clean_driver(driver):
-    cookies=driver.get_cookies()
-    driver.quit()
-    driver=get_driver()
-    driver.get('https://www.jd.com/')
-    for cookie in cookies:
-        driver.add_cookie(cookie)
-    return driver
+def clean_driver(driver,clear_n):
+    if clear_n % clean_driver_after_n_page == 0:
+        print('cleaning driver...')
+        cookies=driver.get_cookies()
+        driver.quit()
+        driver=get_driver()
+        driver.get('https://www.jd.com/')
+        for cookie in cookies:
+            driver.add_cookie(cookie)
+        clear_n=1
+        print('Done .')
+    else:
+        clear_n+=1
+    return driver,clear_n
 
 
 
 def login():
     def get_one_user():
         try:
-            userlist=json.load(open(datadir+'users.json'))
+            userlist=json.load(open('./data/users.json'))
             user=userlist.pop(0)
             userlist.append(user)
-            json.dump(userlist,open(datadir+'users.json','w'))
+            json.dump(userlist,open('./data/users.json','w'))
 
         except (FileNotFoundError,IndexError):
-            json.dump([],open(datadir+'users.json','w'))
+            json.dump([],open('./data/users.json','w'))
             user=None
         return user
 
@@ -68,7 +73,7 @@ def login():
         print('saving user {} ...'.format(username))
       
         # 检查文件 如果user存在则删除 
-        users=json.load(open(datadir+'users.json'))
+        users=json.load(open('./data/users.json'))
         newusers=[]
         for user in users:
             if username == user['username']:
@@ -80,7 +85,7 @@ def login():
             'username':username,
             'cookies':cookies
         })
-        json.dump(newusers,open(datadir+'users.json','w'))
+        json.dump(newusers,open('./data/users.json','w'))
         print('Hello {} !'.format(username))
 
     def test_user(user,driver):
@@ -235,10 +240,7 @@ def jdtry(driver, itemlist):
         else:
             print('Have got befor!')
         
-        clear_n += 1
-        if clear_n % 10 == 0 :
-            clear_n=1
-            driver = clean_driver(driver)
+        driver,clear_n = clean_driver(driver,clear_n)
 
     return driver
         
@@ -283,13 +285,10 @@ def jdbean(driver,beandata):
             continue
         
         newbeandata[shop['shopId']]=shop
+    
+        driver,clear_n = clean_driver(driver,clear_n)
 
-        clear_n += 1
-        if clear_n % 10 == 0 :
-            clear_n=1
-            driver = clean_driver(driver)
-
-    json.dump(newbeandata,open(datadir+'Beandata.json', 'w'),ensure_ascii=False)
+    json.dump(newbeandata,open('./data/Beandata.json', 'w'),ensure_ascii=False)
     return driver
 
 def loaddata():
@@ -299,14 +298,14 @@ def loaddata():
 
     # 载入Trydata
     try:
-        Trydata = json.load(open(datadir+'Trydata.json'))
+        Trydata = json.load(open('./data/Trydata.json'))
         trydata=Trydata['trydata']
         if time.time()-Trydata['updatetime'] > 12*60*60:
             raise TimeoutError
         else:
             # Trydata载入成功则载入Beandata
             try:
-                beandata = json.load(open(datadir+'Beandata.json'))
+                beandata = json.load(open('./data/Beandata.json'))
                 beandata = [shop[1] for shop in beandata.items()]
                 beandata.sort(key=sort_Bean,reverse=True)
             except FileNotFoundError:

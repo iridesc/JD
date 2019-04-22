@@ -5,7 +5,6 @@ import json
 from math import exp,pi
 from retry import retry
 
-datadir='./data/'
 
 def bar(n,l,long=50,done='=',head='>',blank='.'):
     print('[{}]{}%'.format((int(n/l*long)*done+head+blank*long)[0:long],round(n/l*100,2),))
@@ -74,7 +73,7 @@ def getattrs(activity_id_list):
 
     # 载入Beandata
     try:
-        beandata = json.load(open(datadir+'Beandata.json', 'r'))
+        beandata = json.load(open('./data/Beandata.json', 'r'))
     except FileNotFoundError:
         print('Beandata not find, using a default list as [] .')
         beandata = {}
@@ -139,7 +138,7 @@ def getattrs(activity_id_list):
 
 def loadrule():
     try:
-            rule = json.load(open(datadir+'rule.txt'))
+            rule = json.load(open('./data/rule.txt'))
     except:
         rule = {
             '自营': 30,
@@ -150,7 +149,7 @@ def loadrule():
             '优先关键字': ['鼠标', '键盘', '硬盘', '内存', '显卡', '笔记本', '中性笔', '路由器', '智能', 'u盘', '耳机', '音箱', '储存卡'],
             '排除关键字': ['丝袜', '文胸', '舞鞋','课程', '流量卡', '婴儿', '手机壳','钢化膜', '润滑油', '纸尿裤','白酒', '药', '保健品'],
         }
-        json.dump(rule, open(datadir+'rule.txt', 'w'),ensure_ascii=False,indent=4)
+        json.dump(rule, open('./data/rule.txt', 'w'),ensure_ascii=False,indent=4)
 
         print('can\'t find rule.txt, useing default rule !')
     return rule
@@ -231,6 +230,6 @@ def Main():
         'trydata':trydata,
     }
 
-    json.dump(Trydata, open(datadir+'Trydata.json', 'w'),ensure_ascii=False)
-    json.dump(beandata,open(datadir+'Beandata.json', 'w'),ensure_ascii=False)
+    json.dump(Trydata, open('./data/Trydata.json', 'w'),ensure_ascii=False)
+    json.dump(beandata,open('./data/Beandata.json', 'w'),ensure_ascii=False)
     return trydata,beandata
