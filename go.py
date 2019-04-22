@@ -9,8 +9,10 @@ import random
 import json
 from reget import bar
 
+
+
 TEST=False
-max_clean_n = 20
+max_clean_n = 10
 
 def get_driver(headless=True,nopic=True):
     chrome_options = Options()
@@ -179,7 +181,6 @@ def jdtry(driver, itemlist):
         time.sleep(random.random()+1)
         dialog = driver.find_element_by_class_name(
             'ui-dialog-content')
-    
         return dialog.text,dialog
 
     @retry(tries=3, delay=1, backoff=2)
