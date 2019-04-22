@@ -12,7 +12,7 @@ from reget import bar
 
 
 TEST=False
-max_clean_n = 5
+max_clean_n = 100
 
 def get_driver(headless=True,nopic=True,nostyle=True):
     systemtype=sys.platform
@@ -47,24 +47,24 @@ def get_driver(headless=True,nopic=True,nostyle=True):
 
 
 def clean_driver(driver,clear_n):
-    # if clear_n % max_clean_n == 0:
-    #     print('cleaning driver...')
-    #     cookies=driver.get_cookies()
-    #     driver.quit()
-    #     driver=get_driver()
-    #     driver.get('https://www.jd.com/')
-    #     for cookie in cookies:
-    #         try:
-    #             driver.add_cookie(cookie)
-    #         except Exception as e:
-    #             if TEST:
-    #                 print(e)
-    #                 print(cookie)
+    if clear_n % max_clean_n == 0:
+        print('cleaning driver...')
+        cookies=driver.get_cookies()
+        driver.quit()
+        driver=get_driver()
+        driver.get('https://www.jd.com/')
+        for cookie in cookies:
+            try:
+                driver.add_cookie(cookie)
+            except Exception as e:
+                if TEST:
+                    print(e)
+                    print(cookie)
 
-    #     clear_n=1
-    #     print('Done .')
-    # else:
-    #     clear_n+=1
+        clear_n=1
+        print('Done .')
+    else:
+        clear_n+=1
     return driver,clear_n
 
 def login():
@@ -164,7 +164,12 @@ def login():
     driver=get_driver()
     driver.get('https://www.jd.com/')
     for cookie in cookies:
-        driver.add_cookie(cookie)
+        try:
+            driver.add_cookie(cookie)
+        except Exception as e:
+            if TEST:
+                print(e)
+                print(cookie)
     driver.refresh()
 
     return driver
