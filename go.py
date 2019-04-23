@@ -71,21 +71,44 @@ def login():
     def get_one_user():
         try:
             userlist=json.load(open('./data/users.json'))
-            user=userlist.pop(0)
-            userlist.append(user)
-            json.dump(userlist,open('./data/users.json','w'))
+            l=len(userlist)
+          
+            if l==0:
+                user = None
+            elif l==1:
+                user=userlist[0]
+            else:
+                print('找到{}个user'.format(l))
+                while True:
+                    n=1
+                    for user in userlist:
+                        print('{}--{}'.format(n,user['username']))
+                        n+=1
+
+                    try:
+                        user=userlist[int(input('输入user编号:'))-1]
+                        break
+                    except:
+                        print('输入错误，重新输入')
 
         except (FileNotFoundError,IndexError):
-            json.dump([],open('./data/users.json','w'))
             user=None
+            userlist=[]
+        except Exception as e:
+            print('unknow error in get_one_user')
+            print(str(e))
+            user=None
+           
+        json.dump([],open('./data/users.json','w'))
         return user
 
     def save_one_user(cookies):
+        print('saving user...')
         for cookie in cookies:
             if cookie['name'] =='unick':
                     username=cookie['value']
                     break
-        print('saving user {} ...'.format(username))
+        
       
         # 检查文件 如果user存在则删除 
         users=json.load(open('./data/users.json'))
@@ -101,10 +124,9 @@ def login():
             'cookies':cookies
         })
         json.dump(newusers,open('./data/users.json','w'))
-        print('Hello {} !'.format(username))
-
+     
     def test_user(user,driver):
-        print('testing user: {}'.format(user['username']))
+        print('testing {} ...'.format(user['username']))
         testurl='https://home.jd.com/'
         url='https://jd.com/'
         driver.get(url)
@@ -123,6 +145,7 @@ def login():
         return logined,driver
 
     def relogin(driver):
+        print('relogin...')
         driver.quit()
         driver=get_driver(headless=False,nopic=False)
         driver.set_window_size(550, 550)
@@ -141,7 +164,7 @@ def login():
         return driver
     
    
-    an=input('载入userlist中的user？')
+    an=input('y:载入userlist，n:添加新user\n>>>')
     driver=get_driver()
     if an=='' or an == 'y':
         user=get_one_user()
@@ -171,7 +194,7 @@ def login():
                 print(e)
                 print(cookie)
     driver.refresh()
-
+    #print('Hello {} !'.format(username))
     return driver
 
 def delfollows(driver):
