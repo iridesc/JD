@@ -98,8 +98,8 @@ def login():
             print('unknow error in get_one_user')
             print(str(e))
             user=None
-           
-        json.dump([],open('./data/users.json','w'))
+        
+        json.dump(userlist,open('./data/users.json','w'))
         return user
 
     def save_one_user(cookies):
