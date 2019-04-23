@@ -12,7 +12,7 @@ from reget import bar
 
 
 TEST=False
-max_clean_n = 100
+max_clean_n = 20
 
 def get_driver(headless=True,nopic=True,nostyle=True):
     systemtype=sys.platform
