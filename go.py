@@ -109,29 +109,17 @@ def login():
         json.dump(userlist,open('./data/users.json','w'),ensure_ascii=False,indent=2)
         return user
 
-    def save_one_user(userid,password,cookies):
-        print('saving user...')
-        for cookie in cookies:
-            if cookie['name'] =='unick':
-                    username=cookie['value']
-                    break
-        
+    def save_one_user(user):
+        username=user['username']
       
         # 检查文件 如果user存在则删除 
         users=json.load(open('./data/users.json'))
         newusers=[]
-        for user in users:
-            if username == user['username']:
-                user['cookies']=cookies
-            else:
-                newusers.append(user)
+        for olduser in users:
+            if username != user['username']:
+                newusers.append(olduser)
         # 重新添加
-        newusers.append({
-            'username':username,
-            'cookies':cookies,
-            'userid':userid,
-            'password':password,
-        })
+        newusers.append(user)
         json.dump(newusers,open('./data/users.json','w'),ensure_ascii=False,indent=2)
      
     def test_user_cookies_status(user,driver):
@@ -147,6 +135,7 @@ def login():
             logined=False
         elif 'home.jd.com' in current_url:
             logined=True
+            
         else:
             print('unknow user login status !!!!!')
             print(current_url)
@@ -157,7 +146,6 @@ def login():
         print('login...')
         driver.quit()
         driver=get_driver(headless=False,nopic=False,nostyle=False)
-        # driver.set_window_size(550, 550)
         driver.get('https://passport.jd.com/new/login.aspx')
         # 转到账户密码登录
         driver.find_element_by_class_name('login-tab-r').click()
@@ -190,8 +178,19 @@ def login():
             except: 
                 pass
 
-    
-        return driver,userid,userpassword
+        # 组建出该user
+        cookies=driver.get_cookies()
+        for cookie in cookies:
+            if cookie['name'] =='unick':
+                    username=cookie['value']
+                    break
+        user={
+            'username':username,
+            'cookies':cookies,
+            'userid':userid,
+            'password':password,
+        }
+        return driver,user
     
    
     an=input('y:载入userlist，n:添加新user\n>>>')
@@ -200,26 +199,25 @@ def login():
         user=get_one_user()
         if user != None:
             logined,driver=test_user_cookies_status(user,driver)
-            if logined:
-                userid=user['userid']
-                password=user['password']
-            elif not logined:
+            if  logined:
+                user['cookies']=driver.get_cookies()
+            else:
                 print('{} not login !'.format(user['username']))
-                driver,userid,password = relogin(driver,password=user['password'],userid=user['userid'])
+                driver,user = relogin(driver,password=user['password'],userid=user['userid'])
         else:
             print('not find any user! please let someone login !') 
-            driver,userid,password = relogin(driver)
+            driver,user= relogin(driver)
     else:
         print('new user login ....')
-        driver,userid,password=relogin(driver)    
+        driver,user=relogin(driver)    
     
-    cookies=driver.get_cookies()
-    save_one_user(userid=userid,password=password,cookies=cookies)
+    
+    save_one_user(user=user)
 
     driver.quit()           
     driver=get_driver()
     driver.get('https://www.jd.com/')
-    for cookie in cookies:
+    for cookie in user['cookies']:
         try:
             driver.add_cookie(cookie)
         except Exception as e:
@@ -227,7 +225,7 @@ def login():
                 print(e)
                 print(cookie)
     driver.refresh()
-    #print('Hello {} !'.format(username))
+    print('\nHello {}\n'.format(user['username']))
     return driver
 
 def delfollows(driver):
