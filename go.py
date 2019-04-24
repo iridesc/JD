@@ -46,6 +46,7 @@ def get_driver(headless=True,nopic=True,nostyle=True):
     return driver
 
 
+@retry(tries=15, delay=1, backoff=2)
 def clean_driver(driver,clear_n):
     if clear_n % max_clean_n == 0:
         print('cleaning driver...')
