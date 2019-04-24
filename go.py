@@ -106,7 +106,7 @@ def login():
             print(str(e))
             user=None
         
-        json.dump(userlist,open('./data/users.json','w'))
+        json.dump(userlist,open('./data/users.json','w'),ensure_ascii=False,indent=2)
         return user
 
     def save_one_user(cookies):
@@ -128,9 +128,9 @@ def login():
         # 重新添加
         newusers.append({
             'username':username,
-            'cookies':cookies
+            'cookies':cookies,
         })
-        json.dump(newusers,open('./data/users.json','w'))
+        json.dump(newusers,open('./data/users.json','w'),ensure_ascii=False,indent=2)
      
     def test_user(user,driver):
         print('testing {} ...'.format(user['username']))
