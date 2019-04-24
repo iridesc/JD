@@ -146,7 +146,9 @@ def login():
         print('login...')
         driver.quit()
         driver=get_driver(headless=False,nopic=False,nostyle=False)
+        driver.set_window_size(350,350)
         driver.get('https://passport.jd.com/new/login.aspx')
+       
         # 转到账户密码登录
         driver.find_element_by_class_name('login-tab-r').click()
         
