@@ -86,12 +86,12 @@ def login():
                 user=userlist[0]
             else:
                 print('找到{}个user'.format(l))
-                while True:
-                    n=1
-                    for user in userlist:
-                        print('{}--{}'.format(n,user['username']))
-                        n+=1
+                n=1
+                for user in userlist:
+                    print('{}--{}'.format(n,user['username']))
+                    n+=1
 
+                while True:
                     try:
                         user=userlist[int(input('输入user编号:'))-1]
                         break
@@ -109,7 +109,7 @@ def login():
         json.dump(userlist,open('./data/users.json','w'),ensure_ascii=False,indent=2)
         return user
 
-    def save_one_user(cookies):
+    def save_one_user(userid,password,cookies):
         print('saving user...')
         for cookie in cookies:
             if cookie['name'] =='unick':
@@ -129,10 +129,12 @@ def login():
         newusers.append({
             'username':username,
             'cookies':cookies,
+            'userid':userid,
+            'password':password,
         })
         json.dump(newusers,open('./data/users.json','w'),ensure_ascii=False,indent=2)
      
-    def test_user(user,driver):
+    def test_user_cookies_status(user,driver):
         print('testing {} ...'.format(user['username']))
         testurl='https://home.jd.com/'
         url='https://jd.com/'
@@ -151,24 +153,45 @@ def login():
             logined=False
         return logined,driver
 
-    def relogin(driver):
-        print('relogin...')
+    def relogin(driver,userid=None,password=None):
+        print('login...')
         driver.quit()
-        driver=get_driver(headless=False,nopic=False)
-        driver.set_window_size(550, 550)
+        driver=get_driver(headless=False,nopic=False,nostyle=False)
+        # driver.set_window_size(550, 550)
         driver.get('https://passport.jd.com/new/login.aspx')
-        n = 0
+        # 转到账户密码登录
+        driver.find_element_by_class_name('login-tab-r').click()
+        
         while not driver.current_url == 'https://www.jd.com/':
-            time.sleep(1)
-            n += 1
-            if n > 179:
-                driver.refresh()
-                print('QR have refreshed !')
-                n = 0
-            if n % 5 == 0:
-                print('Witing for login....{} s '.format(180-n))
+            userid_box=driver.find_element_by_id('loginname')
+            password_box=driver.find_element_by_id('nloginpwd')
+            # 清空输入框    
+            userid_box.clear()
+            password_box.clear()
+            
+            # 获取账户密码
+            if userid== None or password == None:
+                userid=input('输入登录ID：')    
+                userpassword=input('输入登录密码：')
 
-        return driver
+            password_box.send_keys(userpassword)
+            userid_box.send_keys(userid)
+
+            driver.find_element_by_id('loginsubmit').click()
+            WebDriverWait(driver,10).until(lambda driver:driver.find_element_by_xpath('/html/body/div[4]/div/div').is_displayed())
+            print('滑动以通过验证...')
+            WebDriverWait(driver,120).until_not(lambda driver:driver.find_element_by_xpath('/html/body/div[4]/div/div').is_displayed())
+            
+            # 如果出现错误 打印出信息
+            try:
+                msg=driver.find_element_by_class_name('msg-error')
+                if msg.is_displayed():
+                    print(msg.text)
+            except: 
+                pass
+
+    
+        return driver,userid,userpassword
     
    
     an=input('y:载入userlist，n:添加新user\n>>>')
@@ -176,19 +199,22 @@ def login():
     if an=='' or an == 'y':
         user=get_one_user()
         if user != None:
-            logined,driver=test_user(user,driver)
-            if not logined:
-                print('{} not login ! please login !'.format(user['username']))
-                driver = relogin(driver)
+            logined,driver=test_user_cookies_status(user,driver)
+            if logined:
+                userid=user['userid']
+                password=user['password']
+            elif not logined:
+                print('{} not login !'.format(user['username']))
+                driver,userid,password = relogin(driver,password=user['password'],userid=user['userid'])
         else:
-            print('not find any user! please login !') 
-            driver = relogin(driver)
+            print('not find any user! please let someone login !') 
+            driver,userid,password = relogin(driver)
     else:
         print('new user login ....')
-        driver=relogin(driver)    
+        driver,userid,password=relogin(driver)    
     
     cookies=driver.get_cookies()
-    save_one_user(cookies)
+    save_one_user(userid=userid,password=password,cookies=cookies)
 
     driver.quit()           
     driver=get_driver()
