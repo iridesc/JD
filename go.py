@@ -111,12 +111,12 @@ def login():
 
     def save_one_user(user):
         username=user['username']
-      
+
         # 检查文件 如果user存在则删除 
         users=json.load(open('./data/users.json'))
         newusers=[]
         for olduser in users:
-            if username != user['username']:
+            if olduser['username'] != user['username']:
                 newusers.append(olduser)
         # 重新添加
         newusers.append(user)
@@ -162,9 +162,9 @@ def login():
             # 获取账户密码
             if userid== None or password == None:
                 userid=input('输入登录ID：')    
-                userpassword=input('输入登录密码：')
+                password=input('输入登录密码：')
 
-            password_box.send_keys(userpassword)
+            password_box.send_keys(password)
             userid_box.send_keys(userid)
 
             driver.find_element_by_id('loginsubmit').click()
@@ -176,6 +176,8 @@ def login():
             try:
                 msg=driver.find_element_by_class_name('msg-error')
                 if msg.is_displayed():
+                    userid = None 
+                    password = None
                     print(msg.text)
             except: 
                 pass
@@ -188,9 +190,9 @@ def login():
                     break
         user={
             'username':username,
-            'cookies':cookies,
             'userid':userid,
             'password':password,
+            'cookies':cookies,
         }
         return driver,user
     
