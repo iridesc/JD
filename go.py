@@ -46,14 +46,20 @@ def get_driver(headless=True,nopic=True,nostyle=True):
     return driver
 
 
-@retry(tries=15, delay=1, backoff=2)
+
 def clean_driver(driver,clear_n):
+    
+    @retry(tries=15, delay=1, backoff=2)
+    def get_page(driver):
+        driver.get('https://www.jd.com/')
+        return driver
+    
     if clear_n % max_clean_n == 0:
         print('cleaning driver...')
         cookies=driver.get_cookies()
         driver.quit()
         driver=get_driver()
-        driver.get('https://www.jd.com/')
+        driver=get_page(driver)
         for cookie in cookies:
             try:
                 driver.add_cookie(cookie)
@@ -215,7 +221,7 @@ def delfollows(driver):
 
 def jdtry(driver, itemlist):
 
-    @retry(tries=3, delay=1, backoff=2)
+    @retry(tries=6, delay=1, backoff=2)
     def get_itempage_find_appbtn(driver,item):
         url = 'https://try.jd.com/{}.html'.format(item['activityid'])
         driver.get(url)

@@ -1,4 +1,8 @@
+# 测试脚步
 test.py
+# python 中间文件
 __pycache__/
+# geckodriver 日志
 data/geckodriver.log
+# user信息
 data/users.json
