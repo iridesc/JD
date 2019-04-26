@@ -6,6 +6,8 @@ from math import exp,pi
 from retry import retry
 
 
+ServerAddr='http://0.0.0.0/api/'
+
 def bar(n,l,long=50,done='=',head='>',blank='.'):
     print('[{}]{}%'.format((int(n/l*long)*done+head+blank*long)[0:long],round(n/l*100,2),))
     return n+1
@@ -44,8 +46,8 @@ def getActivityIdList(pageamount):
         listsoup = BeautifulSoup(text, 'html.parser')
         for li in listsoup.find('div', {'class': 'con'}).find_all('li'):
             # 只获取24h内可以结束的
-            if (int(li.attrs['end_time'])/1000-time.time())/(60*60) < 24:
-                activity_id_list.append(li.attrs['activity_id'])
+            #if (int(li.attrs['end_time'])/1000-time.time())/(60*60) < 24:
+            activity_id_list.append(li.attrs['activity_id'])
     return activity_id_list
 
 def getattrs(activity_id_list):
@@ -67,19 +69,6 @@ def getattrs(activity_id_list):
 
 
 
-
-
-    
-
-    # 载入Beandata
-    try:
-        beandata = json.load(open('./data/Beandata.json', 'r'))
-    except FileNotFoundError:
-        print('Beandata not find, using a default list as [] .')
-        beandata = {}
-    except:
-        print('unknow  in load Beandata! ')
-        beandata = {}
     
     print('获取试用详情')
     trydata=[]
@@ -88,7 +77,6 @@ def getattrs(activity_id_list):
     for activity_id in activity_id_list:
         n=bar(n,l)
         iteminfo = {}
-        shopinfo = {}
     
         # 获取各种属性
         try:
@@ -97,32 +85,22 @@ def getattrs(activity_id_list):
             print('error in {} .\n{}'.format('get_activity_data',str(e)))
             continue
     
-        # 检查 店铺id 是不是已存在Beandata 不存在则加入
-        try:
-            if data['shopInfo']['shopId'] not in beandata:
-                shopinfo['shopname'] = data['shopInfo']['title']
-                shopinfo['score'] = 0
-                shopinfo['shopId']= data['shopInfo']['shopId']
-                beandata[data['shopInfo']['shopId']]=shopinfo
-    
-        except TypeError:
-            print('TypeError when get shop info ')
 
         # 活动属性提取
-        iteminfo['activityid'] = activity_id
-        iteminfo['trialSkuId'] = data['trialSkuId']
-        iteminfo['startTime'] = data['startTime']/1000
-        iteminfo['endTime'] = data['endTime']/1000
-        iteminfo['supplyCount'] = data['supplyCount']
-        iteminfo['trialName'] = data['trialName']
+        iteminfo['ActivityId'] = activity_id
+        iteminfo['TrialSkuId'] = data['trialSkuId']
+        iteminfo['StartTime'] = data['startTime']/1000
+        iteminfo['EndTime'] = data['endTime']/1000
+        iteminfo['SupplyCount'] = data['supplyCount']
+        iteminfo['TrialName'] = data['trialName']
         try:
-            iteminfo['shopname'] = data['shopInfo']['title']
-            iteminfo['shopId'] = data['shopInfo']['shopId']
+            iteminfo['ShopName'] = data['shopInfo']['title']
+            iteminfo['ShopId'] = data['shopInfo']['shopId']
         except TypeError:
             print('TypeError when get activity {} shop info '.format(
                 iteminfo['activityid']))
-            iteminfo['shopname'] = ''
-            iteminfo['shopId'] = ''
+            iteminfo['Shopname'] = ''
+            iteminfo['ShopId'] = ''
 
         # 获取价格
         try:
@@ -130,31 +108,35 @@ def getattrs(activity_id_list):
         except Exception as e:
             print(' in {} .\n{}'.format('get_price',str(e)))
             price = 25
-        iteminfo['price'] = float(price)
+        iteminfo['Price'] = float(price)
 
         trydata.append(iteminfo)
         
-    return trydata,beandata
+    return trydata
 
-def loadrule():
-    try:
-            rule = json.load(open('./data/rule.txt'))
-    except:
-        rule = {
-            '自营': 30,
-            '旗舰': 15,
-            '价格': 30,
-            '数量': 30,
-            '关键字': 20,
-            '优先关键字': ['鼠标', '键盘', '硬盘', '内存', '显卡', '笔记本', '中性笔', '路由器', '智能', 'u盘', '耳机', '音箱', '储存卡'],
-            '排除关键字': ['丝袜', '文胸', '舞鞋','课程', '流量卡', '婴儿', '手机壳','钢化膜', '润滑油', '纸尿裤','白酒', '药', '保健品'],
-        }
-        json.dump(rule, open('./data/rule.txt', 'w'),ensure_ascii=False,indent=4)
+def estimate(trydata):
+    def loadrule():
+        try:
+                rule = json.load(open('./data/rule.txt'))
+        except:
+            rule = {
+                '自营': 30,
+                '旗舰': 15,
+                '价格': 30,
+                '数量': 30,
+                '关键字': 20,
+                '优先关键字': ['鼠标', '键盘', '硬盘', '内存', '显卡', '笔记本', '中性笔', '路由器', '智能', 'u盘', '耳机', '音箱', '储存卡'],
+                '排除关键字': ['丝袜', '文胸', '舞鞋','课程', '流量卡', '婴儿', '手机壳','钢化膜', '润滑油', '纸尿裤','白酒', '药', '保健品'],
+            }
+            json.dump(rule, open('./data/rule.txt', 'w'),ensure_ascii=False,indent=4)
 
-        print('can\'t find rule.txt, useing default rule !')
-    return rule
+            print('can\'t find rule.txt, useing default rule !')
+        return rule
 
-def estimate(rule,trydata):
+
+    # 载入规则
+    rule=loadrule()
+
     data=[]
     for iteminfo in trydata:
         # 计算价值
@@ -183,25 +165,48 @@ def estimate(rule,trydata):
             return score
 
         scorelist = [
-            get_shopname_score(iteminfo['shopname']),
-            get_price_score(iteminfo['price']),
-            get_amount_score(iteminfo['supplyCount']),
-            get_key_score(iteminfo['trialName']),
+            get_shopname_score(iteminfo['ShopName']),
+            get_price_score(iteminfo['Price']),
+            get_amount_score(iteminfo['SupplyCount']),
+            get_key_score(iteminfo['TrialName']),
         ]
 
         # 数据添加
-        iteminfo['scorelist'] = scorelist
         iteminfo['score'] = sum(scorelist)
         data.append(iteminfo)
+    
+
+    # 按照分数重新排序
+    def sort_by_score(item):
+        return item['score']
+    data.sort(key=sort_by_score, reverse=True)
+
     return data
 
-def Main():
+
+@retry(tries=3, delay=1, backoff=2)
+def UpdateTryData(try_activity_list):
+    send_data={
+
+        'Reason':'UpdateTryData'
+    }
+
+    send_data['TryActivityList']=try_activity_list
+    r=requests.post(ServerAddr,json=send_data)
+    print(r.status_code)
+    r.raise_for_status
+    data=r.json()
+    return data
+
+
+def reget():
 
     # 获取页数
     try:
         pageamount=getpageamount()
     except Exception as e:
             print(' in {} .\n{}'.format('getpageamount',str(e)))
+            raise Exception
     
 
     # 获取 activity_id_list
@@ -209,27 +214,17 @@ def Main():
  
 
     # 获取信息
-    trydata,beandata = getattrs(activity_id_list)
+    try_activity_list= getattrs(activity_id_list)
 
-    # 载入规则
-    rule=loadrule()
+    # 上传
+    try:
+        UpdateTryData(try_activity_list)
+    except Exception as e:
+        print('try_activity_list 上传失败！\n',str(e))
+    
 
-    # 评估
-    trydata=estimate(rule,trydata)
-
-
-    # 按照分数重新排序
-    def sort_by_score(item):
-        return item['score']
-    trydata.sort(key=sort_by_score, reverse=True)
+    # 评估 与 排序
+    try_activity_list=estimate(try_activity_list)
 
 
-    # 储存数据
-    Trydata={
-        'updatetime':time.time(),
-        'trydata':trydata,
-    }
-
-    json.dump(Trydata, open('./data/Trydata.json', 'w'),ensure_ascii=False)
-    json.dump(beandata,open('./data/Beandata.json', 'w'),ensure_ascii=False)
-    return trydata,beandata
+    return try_activity_list

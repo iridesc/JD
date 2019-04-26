@@ -1,18 +1,26 @@
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import TimeoutException,NoSuchElementException
-import reget
+from reget import reget
+from reget import bar
+from reget import estimate
 import time
 from retry import retry
 import random
 import json
 import sys
-from reget import bar
 
+import requests
 
 
 TEST=False
 max_clean_n = 20
+EachRequestShopAmount=50
+EachUpdateShopAmount=5
+BeanDataRecent=14
+ServerAddr='http://0.0.0.0/api/'
+TryDataGap=1
+DriverCleanN=0
 
 def get_driver(headless=True,nopic=True,nostyle=True):
     systemtype=sys.platform
@@ -45,16 +53,16 @@ def get_driver(headless=True,nopic=True,nostyle=True):
     # driver.set_page_load_timeout(30)
     return driver
 
-
-
-def clean_driver(driver,clear_n):
+def clean_driver(driver):
     
     @retry(tries=15, delay=1, backoff=2)
     def get_page(driver):
         driver.get('https://www.jd.com/')
         return driver
     
-    if clear_n % max_clean_n == 0:
+    global DriverCleanN
+    
+    if DriverCleanN % max_clean_n == 0:
         print('cleaning driver...')
         cookies=driver.get_cookies()
         driver.quit()
@@ -68,11 +76,11 @@ def clean_driver(driver,clear_n):
                     print(e)
                     print(cookie)
 
-        clear_n=1
+        DriverCleanN=1
         print('Done .')
     else:
-        clear_n+=1
-    return driver,clear_n
+        DriverCleanN+=1
+    return driver
 
 def login():
     def get_one_user():
@@ -102,8 +110,8 @@ def login():
             user=None
             userlist=[]
         except Exception as e:
-            print('unknow error in get_one_user')
-            print(str(e))
+         
+            print('error in {} .\n{}'.format('get_one_user',str(e)))
             user=None
         
         json.dump(userlist,open('./data/users.json','w'),ensure_ascii=False,indent=2)
@@ -247,11 +255,11 @@ def delfollows(driver):
     except Exception as e:
             print(' error in {}  \n{}'.format('',str(e)))
 
-def jdtry(driver, itemlist):
+def jdtry(driver):
 
     @retry(tries=6, delay=1, backoff=2)
     def get_itempage_find_appbtn(driver,item):
-        url = 'https://try.jd.com/{}.html'.format(item['activityid'])
+        url = 'https://try.jd.com/{}.html'.format(item['ActivityId'])
         driver.get(url)
         btn=driver.find_element_by_class_name('app-btn')
         return btn
@@ -269,17 +277,44 @@ def jdtry(driver, itemlist):
         dialog.find_element_by_class_name('y').click()
         time.sleep(random.random()*2+4)
     
+    @retry(tries=3, delay=1, backoff=2)
+    def GetTryData(TryDataGap):
+        send_data={
+        'Reason':'GetTryData',
+        'Days':1,
+        }
+
+        r=requests.post(ServerAddr,json=send_data)
+        print(r.status_code)
+        r.raise_for_status
+        data=r.json()
+        return data
+
+
+
+    global DriverCleanN
+    print('获取试用列表...')
+    data=GetTryData(TryDataGap)
+    if not data['Status']:
+        if data['Reason']=='TryDataTimeout':
+            print(data['Reason'])
+            try_activity_list=reget()
+        else:
+            print(data)
+            raise Exception
+    else:
+        try_activity_list=estimate(data['TryActivityList'])
+
     print('开始申请京东试用...')
  
-    
     n=0
-    clear_n=1
-    l=len(itemlist)
-    for item in itemlist:
+    
+    l=len(try_activity_list)
+    for try_activity in try_activity_list:
         n=bar(n,l)
         # get itempage & find app-btn
         try:
-            app_btn =get_itempage_find_appbtn(driver,item)
+            app_btn =get_itempage_find_appbtn(driver,try_activity)
         except Exception as e:
             print(' error in {}  \n{}'.format('get itempage & find app-btn',str(e)))    
             continue
@@ -303,14 +338,14 @@ def jdtry(driver, itemlist):
                 break
             
             elif '申请成功' in dialogtext:
-                print('Success ! {}'.format(item['trialName']))
+                print('Success ! {}'.format(try_activity['TrialName']))
                 time.sleep(random.random()*2+4)
             
 
             elif '需关注店铺' in dialogtext:
                 try:
                     click_fellow(dialog)
-                    print('Success ! {}'.format(item['trialName']))
+                    print('Success ! {}'.format(try_activity['TrialName']))
                 except Exception as e:
                     print(' error in {}  \n{}'.format('clickYES',str(e)))
             else:
@@ -318,91 +353,108 @@ def jdtry(driver, itemlist):
         else:
             print('Have got befor!')
         
-        driver,clear_n = clean_driver(driver,clear_n)
+        driver= clean_driver(driver)
 
     return driver
         
-def jdbean(driver,beandata):
+def jdbean(driver):
     @retry(tries=3, delay=1, backoff=2)
-    def get_shop_page(shuoid,driver):
-        shopurl = 'https://mall.jd.com/index-{}.html'.format(shopid)
+    def get_shop_page(shop_id,driver):
+        shopurl = 'https://mall.jd.com/index-{}.html'.format(shop_id)
         driver.get(shopurl)
         return driver
+
+    @retry(tries=3, delay=1, backoff=2)
+    def GetBeanData(BeanDataRecent):
+
+        send_data={
+            'Reason':'GetBeanData',
+            'Days':BeanDataRecent,
+        }
+
+        r=requests.post(ServerAddr,json=send_data)
+        print(r.status_code)
+        r.raise_for_status
+        data=r.json()
+        if not data['Status']:
+            print(data)
+
+        if BeanDataRecent != 0:
+            BeanDataRecent=0
+
+        return data['ShopList'],BeanDataRecent
+    
+    @retry(tries=3, delay=1, backoff=2)
+    def UpdateBeanData(shop_list_for_update):
+        if len(shop_list_for_update)>= EachUpdateShopAmount:
+            send_data={
+                'Reason':'UpdateBeanData',
+                'ShopList':shop_list_for_update
+            }
+            r=requests.post(ServerAddr,json=send_data)
+            print(r.status_code)
+            r.raise_for_status
+            data=r.json()
+            if data['Status']:
+                shop_list_for_update=[]
+            else:
+                print(data)
+
+        return shop_list_for_update     
+
+    global DriverCleanN
 
 
     print('开始获取京豆...')
 
-    n = 0
-    clear_n=1
-    l = len(beandata)
-    newbeandata = {}
-    for shop in beandata:
-        shopid = shop['shopId']
-        # print('shopId:',shopid)
-
-        n=bar(n,l)
-      
+    # 用于预存要更新的Shop
+    shop_list_for_update=[]
+    BeanDataRecent=globals()['BeanDataRecent']
+    while True:
+        # 获取一组店铺
         try:
-            driver=get_shop_page(shopid,driver)
-        except Exception as e:
-            print('error in {} .\n{}'.format('get_shop_page',str(e)))
-            continue
-        
-        try:
-            btn = WebDriverWait(driver, 2.5).until(
-                lambda d: d.find_element_by_css_selector("[class='J_drawGift d-btn']"))
-            btn.click()
-            shop['score'] = 0
-            print('Got it ! {}'.format(shop['shopname']))
-        except TimeoutException:
-            print('Bad luck {}'.format(shop['shopname']))
-            shop['score']-=1
             
+            shop_list,BeanDataRecent=GetBeanData(BeanDataRecent=BeanDataRecent)
         except Exception as e:
-            print(' error in {}  \n{}'.format('jdbean',str(e)))
+            print('error in {} .\n{}'.format('GetBeanData',str(e)))
             continue
         
-        newbeandata[shop['shopId']]=shop
-    
-        driver,clear_n = clean_driver(driver,clear_n)
+        DriverCleanN=1
+        for shop in shop_list:
 
-    json.dump(newbeandata,open('./data/Beandata.json', 'w'),ensure_ascii=False)
-    return driver
-
-def loaddata():
-    # 对beandata进行排序的函数
-    def sort_Bean(shop):
-        return shop['score']
-
-    # 载入Trydata
-    try:
-        Trydata = json.load(open('./data/Trydata.json'))
-        trydata=Trydata['trydata']
-        if time.time()-Trydata['updatetime'] > 12*60*60:
-            raise TimeoutError
-        else:
-            # Trydata载入成功则载入Beandata
+            # 进入店铺主页
             try:
-                beandata = json.load(open('./data/Beandata.json'))
-                beandata = [shop[1] for shop in beandata.items()]
-                beandata.sort(key=sort_Bean,reverse=True)
-            except FileNotFoundError:
-                print('Beandata not find, using a default list as [] .')
-                beandata = []
+                driver=get_shop_page(shop['ShopId'],driver)
             except Exception as e:
-                    print(' error in {}  \n{}'.format('load Beandata',str(e)))
-                    raise
+                print('error in {} .\n{}'.format('get_shop_page',str(e)))
+                continue
+            
+            # 等待获取优惠
+            try:
+                btn = WebDriverWait(driver, 2).until(
+                    lambda d: d.find_element_by_css_selector("[class='J_drawGift d-btn']"))
+                btn.click()
+                print('Got it ! {}'.format(shop['ShopName']))
+                shop['LastGotTime']=time.time()
+                shop_list_for_update.append(shop)
 
-    except (FileNotFoundError,TimeoutError):
-        print('Not find data file or file timeout,Regeting...')
-        trydata,beandata = reget.Main()
-        beandata = [shop[1] for shop in beandata.items()]
-        beandata.sort(key=sort_Bean,reverse=True)
-    except Exception as e:
-            print(' error in {}  \n{}'.format('loaddata',str(e)))
+            except TimeoutException:
 
-    print('\ntrydata: {}\nbeandata: {}\n'.format(len(trydata),len(beandata)))
-    return trydata,beandata
+                print('Bad luck {}'.format(shop['ShopName']))
+            
+            except Exception as e:
+                print(' error in {}  \n{}'.format('jdbean',str(e)))
+            
+            # 重置浏览器
+            driver = clean_driver(driver)
+            
+            # 发送要更新的店铺数据
+            try:
+                shop_list_for_update=UpdateBeanData(shop_list_for_update)
+            except Exception as e:
+                  print('error in {} .\n{}'.format('UpdateBeanData',str(e)))
+                
+    return driver
 
 
 if __name__ == '__main__':
@@ -414,20 +466,20 @@ if __name__ == '__main__':
         if input('是否删除关注的店铺(y/n):') in ['y','']:
             driver=delfollows(driver)
         
-        # load data
-        trydata,beaandata = loaddata()
-        
         # try items
-        driver=jdtry(driver,trydata)
+        # driver=jdtry(driver)
 
         # get bean
-        driver=jdbean(driver,beaandata)
+        driver=jdbean(driver)
 
         # quite
         driver.quit()
 
     except Exception as e:            
-        # quite
+      
         print('a fatal error！now quit！')
         print(e)
+        
+        # quite
         driver.quit()
+        raise
