@@ -26,7 +26,7 @@ def getActivityIdList(pageamount):
 
     @retry(tries=3, delay=1, backoff=2)
     def getListPageText(n):
-        print('>')
+
         r = requests.get(
             'https://try.jd.com/activity/getActivityList?page={}&activityState=0'.format(n),timeout=10)
         return r.text
@@ -62,7 +62,7 @@ def getattrs(activity_id_list):
     @retry(tries=3, delay=1, backoff=2)
     def get_price(iteminfo):
         r=requests.get(
-                'https://p.3.cn/prices/mgets?skuIds=J_{}'.format(iteminfo['trialSkuId']),timeout=10)
+                'https://p.3.cn/prices/mgets?skuIds=J_{}'.format(iteminfo['TrialSkuId']),timeout=10)
         # print(r.status_code)
         j=r.json()
         return j[0]['p']

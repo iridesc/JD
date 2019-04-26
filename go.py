@@ -13,14 +13,19 @@ import sys
 import requests
 
 
+
+
 TEST=False
-max_clean_n = 20
+ServerAddr='http://111.231.78.78:2580/api/'
+ServerAddr='http://0.0.0.0:80/api/'
+MaxDriverCleanN = 20
+DriverCleanN=0
+
 EachRequestShopAmount=50
 EachUpdateShopAmount=5
 BeanDataRecent=14
-ServerAddr='http://0.0.0.0/api/'
 TryDataGap=1
-DriverCleanN=0
+
 
 def get_driver(headless=True,nopic=True,nostyle=True):
     systemtype=sys.platform
@@ -62,7 +67,7 @@ def clean_driver(driver):
     
     global DriverCleanN
     
-    if DriverCleanN % max_clean_n == 0:
+    if DriverCleanN % MaxDriverCleanN == 0:
         print('cleaning driver...')
         cookies=driver.get_cookies()
         driver.quit()
@@ -420,7 +425,9 @@ def jdbean(driver):
             continue
         
         DriverCleanN=1
+        n=0
         for shop in shop_list:
+            n+=1
 
             # 进入店铺主页
             try:
@@ -434,15 +441,19 @@ def jdbean(driver):
                 btn = WebDriverWait(driver, 2).until(
                     lambda d: d.find_element_by_css_selector("[class='J_drawGift d-btn']"))
                 btn.click()
-                print('Got it ! {}'.format(shop['ShopName']))
+
                 shop['LastGotTime']=time.time()
+                
                 shop_list_for_update.append(shop)
 
+                print('Bingo! {} {}'.format(n,shop['ShopName']))
+            
             except TimeoutException:
 
-                print('Bad luck {}'.format(shop['ShopName']))
+                print('None . {} {}'.format(n,shop['ShopName']))
             
             except Exception as e:
+                
                 print(' error in {}  \n{}'.format('jdbean',str(e)))
             
             # 重置浏览器
@@ -467,7 +478,7 @@ if __name__ == '__main__':
             driver=delfollows(driver)
         
         # try items
-        # driver=jdtry(driver)
+        driver=jdtry(driver)
 
         # get bean
         driver=jdbean(driver)
