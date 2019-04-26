@@ -6,7 +6,8 @@ from math import exp,pi
 from retry import retry
 
 
-ServerAddr='http://0.0.0.0/api/'
+ServerAddr='http://111.231.78.78:2580/api/'
+#ServerAddr='http://0.0.0.0:80/api/'
 
 def bar(n,l,long=50,done='=',head='>',blank='.'):
     print('[{}]{}%'.format((int(n/l*long)*done+head+blank*long)[0:long],round(n/l*100,2),))

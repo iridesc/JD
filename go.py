@@ -17,7 +17,7 @@ import requests
 
 TEST=False
 ServerAddr='http://111.231.78.78:2580/api/'
-ServerAddr='http://0.0.0.0:80/api/'
+#ServerAddr='http://0.0.0.0:80/api/'
 MaxDriverCleanN = 20
 DriverCleanN=0
 
@@ -133,6 +133,9 @@ def login():
                 newusers.append(olduser)
         # 重新添加
         newusers.append(user)
+        def for_sort(user):
+            return user['username']
+        newusers.sort(key=for_sort)
         json.dump(newusers,open('./data/users.json','w'),ensure_ascii=False,indent=2)
      
     def test_user_cookies_status(user,driver):
