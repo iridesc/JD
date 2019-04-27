@@ -183,3 +183,4 @@ def UpdateTryActivity():
 
     # 上传
     
+    UpdateTryData(try_activity_list)
