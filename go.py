@@ -1,14 +1,16 @@
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import TimeoutException,NoSuchElementException
-from reget import reget
-from reget import bar
-from reget import estimate
+from UpdateTryActivity import UpdateTryActivity
+from UpdateTryActivity import bar
 import time
 from retry import retry
 import random
 import json
 import sys
+from math import exp,pi
+import urllib.parse
+
 
 import requests
 
@@ -16,13 +18,13 @@ import requests
 
 
 TEST=False
-ServerAddr='http://111.231.78.78:2580/api/'
-#ServerAddr='http://0.0.0.0:80/api/'
+ServerAddr='http://111.231.78.78:1231/api/'
+# ServerAddr='http://0.0.0.0:80/api/'
 MaxDriverCleanN = 20
 DriverCleanN=0
-
+LeastOnlineTime=12
 EachRequestShopAmount=50
-EachUpdateShopAmount=5
+EachUpdateShopAmount=1
 BeanDataRecent=14
 TryDataGap=1
 
@@ -86,6 +88,75 @@ def clean_driver(driver):
     else:
         DriverCleanN+=1
     return driver
+
+def estimate(trydata):
+    def loadrule():
+        try:
+                rule = json.load(open('./data/rule.txt'))
+        except:
+            rule = {
+                '自营': 30,
+                '旗舰': 15,
+                '价格': 30,
+                '数量': 30,
+                '关键字': 20,
+                '优先关键字': ['鼠标', '键盘', '硬盘', '内存', '显卡', '笔记本', '中性笔', '路由器', '智能', 'u盘', '耳机', '音箱', '储存卡'],
+                '排除关键字': ['丝袜', '文胸', '舞鞋','课程', '流量卡', '婴儿', '手机壳','钢化膜', '润滑油', '纸尿裤','白酒', '药', '保健品'],
+            }
+            json.dump(rule, open('./data/rule.txt', 'w'),ensure_ascii=False,indent=4)
+
+            print('can\'t find rule.txt, useing default rule !')
+        return rule
+
+
+    # 载入规则
+    rule=loadrule()
+
+    data=[]
+    for iteminfo in trydata:
+        # 计算价值
+        def get_shopname_score(shopname):
+            return ('自营' in shopname)*rule['自营']+('旗舰' in shopname)*rule['旗舰']
+
+        def get_amount_score(x):
+            E = 10  # excpection
+            theta = 50
+            maxscore = rule['数量']
+            fix = exp(-(10-E)**2/(2*theta**2)) / (theta*(2*pi)**0.5)
+            return (exp(-(x-E)**2/(2*theta**2)) / (theta*(2*pi)**0.5))*maxscore/fix
+
+        def get_price_score(price):
+            maxscore = rule['价格']
+            return maxscore*(-exp(-0.01*price)+1)
+
+        def get_key_score(text):
+            score = 0
+            for key in rule['优先关键字']:
+                if key in text:
+                    score += rule['关键字']
+            for key in rule['排除关键字']:
+                if key in text:
+                    score -= rule['关键字']
+            return score
+
+        scorelist = [
+            get_shopname_score(iteminfo['ShopName']),
+            get_price_score(iteminfo['Price']),
+            get_amount_score(iteminfo['SupplyCount']),
+            get_key_score(iteminfo['TrialName']),
+        ]
+
+        # 数据添加
+        iteminfo['score'] = sum(scorelist)
+        data.append(iteminfo)
+    
+
+    # 按照分数重新排序
+    def sort_by_score(item):
+        return item['score']
+    data.sort(key=sort_by_score, reverse=True)
+
+    return data
 
 def login():
     def get_one_user():
@@ -202,13 +273,14 @@ def login():
         cookies=driver.get_cookies()
         for cookie in cookies:
             if cookie['name'] =='unick':
-                    username=cookie['value']
+                    username=urllib.parse.unquote(cookie['value'])
                     break
         user={
             'username':username,
             'userid':userid,
             'password':password,
             'cookies':cookies,
+            'logintime':time.time(),
         }
         return driver,user
     
@@ -217,18 +289,28 @@ def login():
     driver=get_driver()
     if an=='' or an == 'y':
         user=get_one_user()
+       
         if user != None:
-            logined,driver=test_user_cookies_status(user,driver)
-            if  logined:
-                user['cookies']=driver.get_cookies()
-            else:
-                print('{} not login !'.format(user['username']))
-                driver,user = relogin(driver,password=user['password'],userid=user['userid'])
+            try:
+                if 24*60*60-(time.time()-user['logintime'])>LeastOnlineTime*60*60:
+                    logined,driver=test_user_cookies_status(user,driver)
+                    if  logined:
+                        user['cookies']=driver.get_cookies()
+                    else:
+                        print('{} 未登录 !'.format(user['username']))
+                        driver,user = relogin(driver,password=user['password'],userid=user['userid'])
+                else:
+                    print('{} 登录状态已过期，或可在线时长小于阈值!'.format(user['username']))
+                    driver,user= relogin(driver,password=user['password'],userid=user['userid'])
+            except KeyError:
+                driver,user= relogin(driver,password=user['password'],userid=user['userid'])
+        
         else:
-            print('not find any user! please let someone login !') 
+            print('未找到任何用户 !') 
             driver,user= relogin(driver)
+        
     else:
-        print('new user login ....')
+        print('新用户登录 ...')
         driver,user=relogin(driver)    
     
     
@@ -249,19 +331,22 @@ def login():
     return driver
 
 def delfollows(driver):
-    try:
-        driver.get('https://t.jd.com/follow/vender/list.do')
-        while True:
-            driver.find_element_by_link_text('批量操作').click()
-            driver.find_element_by_class_name('u-check').click()
-            driver.find_element_by_class_name('u-unfollow').click()
-            time.sleep(1)
-            driver.find_element_by_class_name('ui-dialog-btn-submit').click()
-            time.sleep(1)
-    except NoSuchElementException:
-            return driver
-    except Exception as e:
-            print(' error in {}  \n{}'.format('',str(e)))
+    if input('是否删除关注的店铺(y/n):') in ['y','']:
+        try:
+            driver.get('https://t.jd.com/follow/vender/list.do')
+            while True:
+                driver.find_element_by_link_text('批量操作').click()
+                driver.find_element_by_class_name('u-check').click()
+                driver.find_element_by_class_name('u-unfollow').click()
+                time.sleep(1)
+                driver.find_element_by_class_name('ui-dialog-btn-submit').click()
+                time.sleep(1)
+        except NoSuchElementException:
+                print('Done .')
+        except Exception as e:
+                print('error in {}  \n{}'.format('',str(e)))
+    
+    return driver
 
 def jdtry(driver):
 
@@ -293,30 +378,34 @@ def jdtry(driver):
         }
 
         r=requests.post(ServerAddr,json=send_data)
-        print(r.status_code)
         r.raise_for_status
         data=r.json()
         return data
 
 
-
-    global DriverCleanN
+    # 获取试用列表
     print('获取试用列表...')
-    data=GetTryData(TryDataGap)
-    if not data['Status']:
-        if data['Reason']=='TryDataTimeout':
-            print(data['Reason'])
-            try_activity_list=reget()
+    got=False
+    while not got:
+        data=GetTryData(TryDataGap)
+
+        if not data['Status']:
+
+            if data['Reason']=='TryDataTimeout':
+                print(data['Reason'])
+                UpdateTryActivity()
+            else:
+                print(data)
+                raise Exception
         else:
-            print(data)
-            raise Exception
-    else:
-        try_activity_list=estimate(data['TryActivityList'])
+            try_activity_list=estimate(data['TryActivityList'])
+            print('Done .')
+        got=data['Status']
+
 
     print('开始申请京东试用...')
  
     n=0
-    
     l=len(try_activity_list)
     for try_activity in try_activity_list:
         n=bar(n,l)
@@ -337,12 +426,10 @@ def jdtry(driver):
                 print(' error in {}  \n{}'.format('get dialogtext',str(e)))
                 continue
     
-    
-    
 
             # fenxi dialogtext
             if '超过上限' in dialogtext:
-                print('Reach the maximum! Now break!')
+                print('达到每日上限！')
                 break
             
             elif '申请成功' in dialogtext:
@@ -374,7 +461,7 @@ def jdbean(driver):
 
     @retry(tries=3, delay=1, backoff=2)
     def GetBeanData(BeanDataRecent):
-
+        print('获取店铺列表 ...',end=' ')
         send_data={
             'Reason':'GetBeanData',
             'Days':BeanDataRecent,
@@ -389,46 +476,46 @@ def jdbean(driver):
 
         if BeanDataRecent != 0:
             BeanDataRecent=0
-
+        print(len(data['ShopList']))
+        print('Done .')
         return data['ShopList'],BeanDataRecent
     
     @retry(tries=3, delay=1, backoff=2)
     def UpdateBeanData(shop_list_for_update):
         if len(shop_list_for_update)>= EachUpdateShopAmount:
+            print('上传店铺信息 ...')
             send_data={
                 'Reason':'UpdateBeanData',
                 'ShopList':shop_list_for_update
             }
             r=requests.post(ServerAddr,json=send_data)
-            print(r.status_code)
             r.raise_for_status
             data=r.json()
             if data['Status']:
                 shop_list_for_update=[]
             else:
                 print(data)
-
+            print('Done .')
+        
         return shop_list_for_update     
 
-    global DriverCleanN
+   
 
-
-    print('开始获取京豆...')
+    print('开始获取京豆 ...')
 
     # 用于预存要更新的Shop
     shop_list_for_update=[]
-    BeanDataRecent=globals()['BeanDataRecent']
+    global BeanDataRecent
+         
+    n=0
     while True:
         # 获取一组店铺
         try:
-            
             shop_list,BeanDataRecent=GetBeanData(BeanDataRecent=BeanDataRecent)
         except Exception as e:
             print('error in {} .\n{}'.format('GetBeanData',str(e)))
             continue
-        
-        DriverCleanN=1
-        n=0
+   
         for shop in shop_list:
             n+=1
 
@@ -477,8 +564,7 @@ if __name__ == '__main__':
         driver = login()
     
         # clean follows
-        if input('是否删除关注的店铺(y/n):') in ['y','']:
-            driver=delfollows(driver)
+        driver=delfollows(driver)
         
         # try items
         driver=jdtry(driver)
