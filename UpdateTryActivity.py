@@ -35,14 +35,13 @@ def GetPageAmount():
     return pageamount
 
 def getActivityIdList(pageamount):
-    @retry(tries=3, delay=1, backoff=2)
+    @retry(tries=15, delay=1, backoff=2)
     def getListPageText(n):
-
         r = requests.get(
             'https://try.jd.com/activity/getActivityList?page={}&activityState=0'.format(n),timeout=10)
         return r.text
     
-    @retry(tries=3, delay=1, backoff=2)
+    @retry(tries=5, delay=1, backoff=2)
     def RemoveExistingActivityId(activity_id_list):
         print('去除服务端已存在的ID ...' ,end=' ')
         send_data={
@@ -85,18 +84,19 @@ def getActivityIdList(pageamount):
 
 def getattrs(activity_id_list):
 
-    @retry(tries=3, delay=1, backoff=2)
+    @retry(tries=5, delay=1, backoff=2)
     def get_activity_data(activity_id):
         url='https://try.jd.com/migrate/getActivityById?id={}'.format(activity_id)
+        #print(url)
         r = requests.get(url,timeout=10).json()
         data = r['data']
         return data
       
-    @retry(tries=3, delay=1, backoff=2)
+    @retry(tries=5, delay=1, backoff=2)
     def get_price(iteminfo):
-        r=requests.get(
-                'https://p.3.cn/prices/mgets?skuIds=J_{}'.format(iteminfo['TrialSkuId']),timeout=10)
-        # print(r.status_code)
+        url= 'https://p.3.cn/prices/mgets?skuIds=J_{}'.format(iteminfo['TrialSkuId'])
+        #print(url)
+        r=requests.get(url,timeout=10)
         j=r.json()
         return j[0]['p']
 
@@ -173,6 +173,7 @@ def UpdateTryActivity():
 
     # 获取页数
     pageamount=GetPageAmount()
+
 
     # 获取 activity_id_list
     need_check_activity_id_list = getActivityIdList(pageamount)
