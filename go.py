@@ -60,7 +60,7 @@ def get_driver(headless=True,nopic=True,nostyle=True):
     # driver.set_page_load_timeout(30)
     return driver
 
-def clean_driver(driver):
+def clean_driver(driver,keepcookie=True):
     
     @retry(tries=15, delay=1, backoff=2)
     def get_page(driver):
@@ -69,19 +69,20 @@ def clean_driver(driver):
     
     global DriverCleanN
     
-    if DriverCleanN % MaxDriverCleanN == 0:
+    if DriverCleanN > MaxDriverCleanN :
         print('cleaning driver...')
         cookies=driver.get_cookies()
         driver.quit()
         driver=get_driver()
         driver=get_page(driver)
-        for cookie in cookies:
-            try:
-                driver.add_cookie(cookie)
-            except Exception as e:
-                if TEST:
-                    print(e)
-                    print(cookie)
+        if keepcookie:
+            for cookie in cookies:
+                try:
+                    driver.add_cookie(cookie)
+                except Exception as e:
+                    if TEST:
+                        print(e)
+                        print(cookie)
 
         DriverCleanN=1
         print('Done .')
