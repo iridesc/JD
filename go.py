@@ -386,22 +386,23 @@ def jdtry(driver):
 
     # 获取试用列表
     print('获取试用列表...')
-    got=False
-    while not got:
-        data=GetTryData(TryDataGap)
+    
+    data=GetTryData(TryDataGap)
 
-        if not data['Status']:
-
-            if data['Reason']=='TryDataTimeout':
-                print(data['Reason'])
-                UpdateTryActivity()
-            else:
-                print(data)
-                raise Exception
-        else:
+    if data['Status']:
+        try_activity_list=estimate(data['TryActivityList'])
+       
+    else:
+        if data['Reason']=='TryDataTimeout':
+            print(data['Reason'])
+            UpdateTryActivity()
+            data=GetTryData(TryDataGap)
             try_activity_list=estimate(data['TryActivityList'])
-            print('Done .')
-        got=data['Status']
+        else:
+            print(data)
+            raise Exception
+            
+    print('Done .')
 
 
     print('开始申请京东试用...')
