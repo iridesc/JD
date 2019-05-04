@@ -480,11 +480,13 @@ def login():
                 userid=input('输入登录ID：')    
                 password=input('输入登录密码：')
 
-            password_box.send_keys(password)
             userid_box.send_keys(userid)
+            password_box.send_keys(password)
+            
 
             driver.find_element_by_id('loginsubmit').click()
 
+            time.sleep(2)
             if driver.current_url == 'https://www.jd.com/':
                 break
             else:
