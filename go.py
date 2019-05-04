@@ -484,19 +484,23 @@ def login():
             userid_box.send_keys(userid)
 
             driver.find_element_by_id('loginsubmit').click()
-            WebDriverWait(driver,10).until(lambda driver:driver.find_element_by_xpath('/html/body/div[4]/div/div').is_displayed())
-            print('滑动以通过验证...')
-            WebDriverWait(driver,120).until_not(lambda driver:driver.find_element_by_xpath('/html/body/div[4]/div/div').is_displayed())
-            
-            # 如果出现错误 打印出信息
-            try:
-                msg=driver.find_element_by_class_name('msg-error')
-                if msg.is_displayed():
-                    userid = None 
-                    password = None
-                    print(msg.text)
-            except: 
-                pass
+
+            if driver.current_url == 'https://www.jd.com/':
+                break
+            else:
+                WebDriverWait(driver,10).until(lambda driver:driver.find_element_by_xpath('/html/body/div[4]/div/div').is_displayed())
+                print('滑动以通过验证...')
+                WebDriverWait(driver,120).until_not(lambda driver:driver.find_element_by_xpath('/html/body/div[4]/div/div').is_displayed())
+                
+                # 如果出现错误 打印出信息
+                try:
+                    msg=driver.find_element_by_class_name('msg-error')
+                    if msg.is_displayed():
+                        userid = None 
+                        password = None
+                        print(msg.text)
+                except: 
+                    pass
 
         # 组建出该user
         cookies=driver.get_cookies()
@@ -786,8 +790,6 @@ def jdbean(driver):
                   print('error in {} .\n{}'.format('UpdateBeanData',str(e)))
                 
     return driver
-
-
 
 
 
