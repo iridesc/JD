@@ -39,8 +39,8 @@ def LoadConf():
         Conf=json.load(open('data/conf.json'))
 
         TEST=Conf['TEST']
-        JDTryModelON=['JDTryModelON']
-        JDBeanModelON=['JDBeanModelON']
+        JDTryModelON=Conf['JDTryModelON']
+        JDBeanModelON=Conf['JDBeanModelON']
         ServerAddr=Conf['ServerAddr']
         MaxDriverCleanN = Conf['MaxDriverCleanN']
         DriverCleanN=Conf['DriverCleanN']
@@ -53,6 +53,7 @@ def LoadConf():
         BeanWaitTime=Conf['BeanWaitTime']
 
     except Exception as e:
+  
         Conf={
             'TEST':False,
             'JDTryModelON':True,
@@ -89,6 +90,7 @@ def LoadConf():
         print(str(e))
         print('Using default Conf !')
         print(Conf)
+    
 
 def get_driver(headless=True,nopic=True,nostyle=True):
     systemtype=sys.platform
@@ -272,7 +274,7 @@ def UpdateTryActivity():
                 print('TypeError when get activity {} shop info '.format(
                     iteminfo['ActivityId']))
                 iteminfo['ShopName'] = ''
-                iteminfo['ShopId'] = ''
+                iteminfo['ShopId'] = 0
 
             # 获取价格
             try:
@@ -717,30 +719,30 @@ def jdbean(driver):
         return data['ShopList'],BeanDataRecent
     
     @retry(tries=3, delay=1, backoff=2)
-    def UpdateBeanData(shop_list_for_update):
-        if len(shop_list_for_update)>= EachUpdateShopAmount:
+    def UpdateBeanData(shop_id_list_for_update):
+        if len(shop_id_list_for_update)>= EachUpdateShopAmount:
             print('上传店铺信息 ...')
             send_data={
                 'Reason':'UpdateBeanData',
-                'ShopList':shop_list_for_update
+                'ShopIdList':shop_id_list_for_update
             }
             r=requests.post(ServerAddr,json=send_data)
             r.raise_for_status
             data=r.json()
             if data['Status']:
-                shop_list_for_update=[]
+                shop_id_list_for_update=[]
             else:
                 print(data)
             print('Done .')
         
-        return shop_list_for_update     
+        return shop_id_list_for_update     
 
    
 
     print('开始获取京豆 ...')
 
     # 用于预存要更新的Shop
-    shop_list_for_update=[]
+    shop_id_list_for_update=[]
     global BeanDataRecent
          
     n=0
@@ -767,10 +769,8 @@ def jdbean(driver):
                 btn = WebDriverWait(driver, BeanWaitTime).until(
                     lambda d: d.find_element_by_css_selector("[class='J_drawGift d-btn']"))
                 btn.click()
-
-                shop['LastGotTime']=time.time()
                 
-                shop_list_for_update.append(shop)
+                shop_id_list_for_update.append(shop['ShopId'])
 
                 print('Bingo! {} {}'.format(n,shop['ShopName']))
             
@@ -787,7 +787,7 @@ def jdbean(driver):
             
             # 发送要更新的店铺数据
             try:
-                shop_list_for_update=UpdateBeanData(shop_list_for_update)
+                shop_id_list_for_update=UpdateBeanData(shop_id_list_for_update)
             except Exception as e:
                   print('error in {} .\n{}'.format('UpdateBeanData',str(e)))
                 
@@ -803,11 +803,12 @@ if __name__ == '__main__':
         # login
         driver = login()
     
-        # clean follows
-        driver=delfollows(driver)
+       
         
         # try items
-        if JDBeanModelON:
+        if JDTryModelON:
+            # clean follows
+            driver=delfollows(driver)   
             driver=jdtry(driver)
 
         # get bean
