@@ -2,7 +2,7 @@
   "TEST": false,
   "JDTryModelON": true,
   "JDBeanModelON": true,
-  "ServerAddr": "http://0.0.0.0:1231/api/",
+  "ServerAddr": "http://111.231.78.78:1231/api/",
   "MaxDriverCleanN": 20,
   "DriverCleanN": 0,
   "LeastOnlineTime": 12,
