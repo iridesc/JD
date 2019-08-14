@@ -1,14 +1,11 @@
 {
   "TEST": false,
-  "JDTryModelON": true,
+  "JDTryModelON": false,
   "JDBeanModelON": true,
-  "ServerAddr": "http://111.231.78.78:1231/api/",
+  "ServerAddr": "http://127.0.0.1:8000/api/",
   "MaxDriverCleanN": 20,
-  "DriverCleanN": 0,
   "LeastOnlineTime": 12,
-  "EachRequestShopAmount": 50,
-  "EachUpdateShopAmount": 1,
-  "BeanDataRecent": 1,
+  "EachUpdateShopAmount": 20,
   "TryDataGap": 1,
   "UserLoginStatusTestGap": 30,
   "BeanWaitTime": 1

@@ -5,7 +5,7 @@ __pycache__/
 # geckodriver 日志
 data/geckodriver.log
 # user信息
-data/users.json
+# data/users.json
 # trydata
 data/Trydata
 
